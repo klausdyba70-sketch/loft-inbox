@@ -23,27 +23,16 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 
 ## Umgebungsvariablen (trägt Klaus selbst ein)
 
-**Netlify** (Website-Einstellungen, Environment variables):
+**Netlify** (Project configuration → Environment variables). Nur diese vier, alles andere steht schon im Code:
 
 | Name | Inhalt | Geheim |
 | --- | --- | --- |
-| `SUPABASE_URL` | Projekt-URL aus Supabase | nein |
-| `SUPABASE_ANON_KEY` | "anon public" Schlüssel aus Supabase | nein |
-| `SUPABASE_SERVICE_ROLE_KEY` | "service_role" Schlüssel aus Supabase | **ja** |
-| `ANTHROPIC_API_KEY` | API-Schlüssel aus console.anthropic.com | **ja** |
-| `MS_TENANT_ID` / `MS_CLIENT_ID` | Microsoft-Verzeichnis- und Anwendungs-ID | nein |
-| `MS_CLIENT_SECRET` | Geheimer Clientschlüssel der App "Loft Inbox" | **ja** |
-| `FRESHDESK_DOMAIN` / `FRESHDESK_API_KEY` | nur für den Import, danach löschen | **ja** |
+| `SUPABASE_PUBLISHABLE_KEY` | Supabase → Project Settings → API Keys: "Publishable key" (bei älteren Projekten "anon public") | nein |
+| `SUPABASE_SECRET_KEY` | Supabase → API Keys: "Secret key" (bei älteren Projekten "service_role") | **ja** |
+| `MS_CLIENT_SECRET` | Wert des geheimen Clientschlüssels der Microsoft-App "Loft Inbox" | **ja** |
+| `TOKEN_ENC_KEY` | Zufälliger Text mit mindestens 40 Zeichen aus dem Passwortmanager. Verschlüsselt den Microsoft-Zugang in der Datenbank | **ja** |
 
-**Supabase** (Edge Functions, Secrets):
-
-| Name | Inhalt | Geheim |
-| --- | --- | --- |
-| `MS_TENANT_ID` / `MS_CLIENT_ID` | Microsoft-Verzeichnis- und Anwendungs-ID (siehe unten) | nein |
-| `MS_CLIENT_SECRET` | Geheimer Clientschlüssel der App "Loft Inbox" | **ja** |
-| `ANTHROPIC_API_KEY` | wie oben | **ja** |
-| `NOTION_TOKEN` | Schlüssel der Notion-Integration | **ja** |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | aus dem Google-Cloud-Projekt (Phase 3) | **ja** |
+Später (Phase 3): `ANTHROPIC_API_KEY`, `NOTION_TOKEN`, Google-Zugang, Freshdesk-Schlüssel.
 
 ## Bekannte, nicht geheime Werte
 
@@ -57,11 +46,11 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 | Microsoft Umleitungs-URI | https://loftstudiocologne-inbox.netlify.app/api/ms/callback |
 | Google-Kalender | loftstudiocologne@gmail.com: "PENTHOUSE LOFT ANNY", "FACTORY LOFT ANNY" (Anny synchronisiert) |
 
-Der geheime Microsoft-Clientschlüssel kommt als `MS_CLIENT_SECRET` in die Umgebungsvariablen von Netlify und Supabase.
+Der Mailabruf läuft als geplante Netlify-Funktion alle 5 Minuten (`netlify/functions/mail-sync.mjs`).
 
 ## Ersteinrichtung Supabase
 
 1. Projekt "loft-inbox" in Region Frankfurt anlegen.
 2. Authentication: neue Registrierungen abschalten, MFA (TOTP) aktivieren.
-3. SQL Editor: `supabase/migrations/20261105000001_init.sql` ausführen.
+3. SQL Editor: alle Dateien aus `supabase/migrations/` der Reihe nach ausführen.
 4. Klaus' Konto anlegen und seine Nutzer-ID in `public.app_owner` eintragen.
