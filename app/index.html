@@ -509,6 +509,31 @@ body:not([data-view="contacts"]) .contacts{display:none}
 @media (prefers-reduced-motion:reduce){.typing i{animation:none}}
 
 /* echte App: Anmeldung, Feinschliff */
+.detail{flex-direction:row}
+.dmain{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+.dside{width:300px;flex:none;border-left:1px solid var(--line);background:var(--surface);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px}
+.sbox2{display:flex;flex-direction:column;gap:8px}
+.sbox2 h3{margin:0;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.sbox2 .mini{align-self:flex-start}
+.ct{display:flex;gap:10px;align-items:center;min-width:0}
+.ct .stx{min-width:0}.ct .stx b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ct .stx small{display:block;color:var(--mute);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hint2{margin:0;font-size:12.5px;color:var(--mute)}
+.orow{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:8px 10px;border-radius:10px;background:var(--sunk);min-width:0;width:100%}
+.orow span{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}.orow small{font-size:11.5px;color:var(--mute)}
+.prop{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mute)}
+.ssel{height:36px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 10px;font-size:14px}
+.dside .mmg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.dside .mmh{margin-bottom:4px}.dside .mmh b{font-size:14px;text-transform:capitalize}
+.dside .md{display:grid;place-items:center;height:28px;border-radius:7px;font-size:12px}
+.dside .mw{font-size:10.5px;color:var(--mute);text-align:center}
+.composer{padding-top:0}
+.grip{height:16px;display:grid;place-items:center;cursor:ns-resize;touch-action:none;margin:0 calc(-1 * var(--gr)) 2px calc(-1 * var(--g))}
+.grip i{width:44px;height:4px;border-radius:2px;background:var(--line)}
+.grip:hover i,.grip:focus-visible i{background:var(--mute)}
+#draft{resize:none;min-height:56px;max-height:none}
+.cbar{flex-wrap:nowrap}
+@media (max-width:1199px){.dside{display:none}}
+@media (max-width:760px){.xclose{display:none}}
 .cbar{position:relative}
 .saved{font-size:12px;color:var(--mute)}
 .split{position:relative;display:flex}
@@ -792,11 +817,11 @@ function detailHTML() {
     const body = mode === 'html' ? (m.body_html ? `<iframe class="mframe" data-mid="${m.id}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="E-Mail"></iframe>` : `<div class="mbody mload">Original wird geladen …</div>`) : `<div class="mbody">${esc(m.body_text)}</div>`;
     return `<div class="mail ${i === firstIn ? 'first' : ''}"><div class="mhead">${av}${head}</div>${tools}${body}</div>`;
   }).join('');
-  return `<header class="dh"><button class="icon back" id="back" aria-label="Zurück">${I.back}</button>${avatar(t)}
+  return `<div class="dmain"><header class="dh"><button class="icon back" id="back" aria-label="Zurück">${I.back}</button>${avatar(t)}
    <div class="dh-t"><b>${esc(t.name)}</b><small>${esc(t.email)}</small></div>
    <button class="icon ${t.star ? 'star-on' : ''}" id="star" aria-label="Wichtig" title="Wichtig">${I.star(t.star)}</button>
    <button class="icon ${t.status === 'abgeschlossen' ? 'done-on' : ''}" id="done" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}">${I.done}</button>
-   <button class="icon" id="more" aria-label="Optionen">${I.more}</button></header>
+   <button class="icon" id="more" aria-label="Optionen">${I.more}</button><button class="icon xclose" id="closethr" aria-label="Anfrage schließen" title="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
   <div class="dscroll" id="dscroll"><div class="dinner">
    <h2>${esc(t.subject)}</h2>
    <div class="mkrow" role="group" aria-label="Markierung">${Object.keys(COLORS).map((c) => `<button class="swb" data-c="${c}" aria-pressed="${t.color === c}" title="${COLOR_NAMES[c]}" style="--c:${COLORS[c]}"><i></i><span>${COLOR_NAMES[c]}</span></button>`).join('')}${t.color ? '<button class="swb clear" data-c="none" title="Markierung entfernen">×</button>' : ''}</div>
@@ -805,13 +830,13 @@ function detailHTML() {
    <div class="vbar"><span>Verlauf · ${msgs.length} ${msgs.length === 1 ? 'Nachricht' : 'Nachrichten'}</span></div>
    <div class="msgs">${msgs.length ? mails : '<div class="empty">Lade …</div>'}</div>
   </div></div>
-  <footer class="composer"><div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
+  <footer class="composer">${closed ? '' : '<div class="grip" id="grip" role="separator" aria-orientation="horizontal" aria-label="Antwortfeld vergrößern oder verkleinern" tabindex="0"><i></i></div>'}<div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
    <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
-   <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …">${esc(drafts[t.id] || '')}</textarea>
+   <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${composerH}px">${esc(drafts[t.id] || '')}</textarea>
    <div class="cbar"><small class="saved" id="saved">${drafts[t.id] ? 'Entwurf gespeichert' : ''}</small><span class="sp" style="flex:1"></span>
     <button class="icon" id="discard" title="Entwurf verwerfen" aria-label="Entwurf verwerfen" ${drafts[t.id] ? '' : 'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg></button>
     <div class="split">${sendMenu ? `<div class="smenu" role="menu"><h4>Senden und festlegen als</h4>${SEND_AS.map(([k, l, sub]) => `<button role="menuitem" data-sendas="${k}"><b>${l}</b><small>${sub}</small></button>`).join('')}</div>` : ''}
-     <button class="send" id="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>Senden</button><button class="send caret" id="sendmenu" aria-label="Senden und Status festlegen" aria-expanded="${sendMenu}">▾</button></div></div>`}</div></footer>`;
+     <button class="send" id="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>Senden</button><button class="send caret" id="sendmenu" aria-label="Senden und Status festlegen" aria-expanded="${sendMenu}">▾</button></div></div>`}</div></footer></div>${sideHTML(t)}`;
 }
 function frameDoc(html, imgs, quote) {
   const csp = `default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data: cid:${imgs ? ' https: http:' : ''};`;
@@ -874,6 +899,56 @@ async function sendReply(as = 'beantwortet') {
   } catch (e) { toast(e.message); b.disabled = false; b.lastChild.textContent = 'Senden'; $('#sendmenu').disabled = false; }
 }
 
+
+// ---------- Rechte Spalte ----------
+let composerH = 140; try { composerH = +localStorage.getItem('li-composer-h') || 140; } catch (e) {}
+const WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+function miniCal() {
+  const n = new Date(), y = n.getFullYear(), m = n.getMonth(), off = (new Date(y, m, 1).getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate();
+  let c = WD.map((w) => `<span class="mw">${w}</span>`).join('');
+  for (let i = 0; i < off; i++) c += '<span></span>';
+  for (let d = 1; d <= days; d++) c += `<span class="md ${d === n.getDate() ? 'today' : ''} ${d < n.getDate() ? 'past' : ''}"><span>${d}</span></span>`;
+  return `<div class="mmh"><b>${n.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}</b></div><div class="mmg">${c}</div>`;
+}
+function sideHTML(t) {
+  const others = threads.filter((x) => x.email && x.email === t.email && x.id !== t.id).sort((a, b) => b.at - a.at);
+  const sel = (id, opts, val) => `<select class="ssel" data-prop="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(val ?? '') === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  return `<aside class="dside" aria-label="Details zur Anfrage">
+   <section class="sbox2"><h3>Kontakt</h3><div class="ct">${avatar(t, false)}<div class="stx"><b>${esc(t.name)}</b><small>${esc(t.email)}</small></div></div>
+    <button class="mini" data-copy="${esc(t.email)}">E-Mail kopieren</button>
+    <p class="hint2">${others.length ? `${others.length} weitere ${others.length === 1 ? 'Anfrage' : 'Anfragen'} von dieser Adresse` : 'Erste Anfrage von dieser Adresse'}</p>
+    ${others.slice(0, 5).map((o) => `<button class="orow" data-id="${o.id}"><span>${esc(o.subject)}</span><small>${fmtT(o.at)} · ${ST_LABEL[o.status]}</small></button>`).join('')}</section>
+   <section class="sbox2"><h3>Eigenschaften</h3>
+    <label class="prop">Status${sel('status', Object.entries(ST_LABEL), t.status)}</label>
+    <label class="prop">Studio${sel('studio', [['X', 'Nicht festgelegt'], ['P', 'Penthouse Loft'], ['F', 'Factory Loft']], t.studio)}</label>
+    <label class="prop">Art der Anfrage${sel('cat', [['', 'Nicht festgelegt'], ...CATS.map((c) => [c, c])], t.cat || '')}</label>
+    <label class="prop">Priorität${sel('prio', [['hoch', 'Hoch'], ['normal', 'Normal'], ['niedrig', 'Niedrig']], t.prio)}</label></section>
+   <section class="sbox2"><h3>Kalender</h3>${miniCal()}<p class="hint2">Belegung von Penthouse und Factory erscheint hier, sobald die Google-Kalender verbunden sind (nächster Schritt).</p></section>
+  </aside>`;
+}
+document.addEventListener('change', async (e) => {
+  const p = e.target.dataset?.prop; if (!p || !current) return;
+  const v = e.target.value;
+  await patch(current, { [p]: p === 'cat' ? v || null : v });
+  renderList(); redrawDetail();
+});
+// Antwortfeld per Griff vergrößern
+document.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('#grip') == null) return;
+  const ta = $('#draft'); if (!ta) return;
+  e.preventDefault();
+  const y0 = e.clientY, h0 = ta.offsetHeight, maxH = Math.max(160, ($('#detail').clientHeight || 600) * 0.65);
+  const move = (ev) => { composerH = Math.round(Math.min(maxH, Math.max(56, h0 + (y0 - ev.clientY)))); ta.style.height = composerH + 'px'; };
+  const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); try { localStorage.setItem('li-composer-h', composerH); } catch (err) {} };
+  document.addEventListener('pointermove', move); document.addEventListener('pointerup', up);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.target.id !== 'grip' || !['ArrowUp', 'ArrowDown'].includes(e.key)) return;
+  const ta = $('#draft'); if (!ta) return; e.preventDefault();
+  composerH = Math.max(56, Math.min(600, ta.offsetHeight + (e.key === 'ArrowUp' ? 40 : -40))); ta.style.height = composerH + 'px';
+  try { localStorage.setItem('li-composer-h', composerH); } catch (err) {}
+});
+
 // ---------- Optionen ----------
 function sheetHTML() {
   const t = current; if (sheet !== 'more' || !t) return '';
@@ -935,12 +1010,14 @@ document.addEventListener('click', async (e) => {
   if (b.dataset.ps) { pageSize = +b.dataset.ps; page = 0; savePrefs(); renderList(); return; }
   if (b.dataset.pg) { page = Math.max(0, page + +b.dataset.pg); renderList(); $('#rows').scrollTop = 0; return; }
   if (b.dataset.id) { openThread(b.dataset.id); return; }
+  if (b.id === 'closethr') { current = null; sheet = null; sendMenu = false; document.body.classList.remove('open'); render(); return; }
   if (b.id === 'back') { document.body.classList.remove('open'); current = null; render(); return; }
   if (b.dataset.themeSet) { settings.theme = b.dataset.themeSet; applyTheme(); savePrefs(); renderSettings(); sb.from('settings').update({ theme: settings.theme }).eq('id', true).then(() => {}); return; }
   if (b.id === 'ms') { try { const { url } = await api('/api/ms/start', {}); location.href = url; } catch (err) { toast(err.message); } return; }
   if (b.id === 'sync') { b.disabled = true; b.textContent = 'Abruf läuft …'; try { const r = await api('/api/sync', {}); const n = r.result.inbox.neu + r.result.sentitems.neu; toast(`${n} neue Nachrichten.` + (r.result.inbox.fertig && r.result.sentitems.fertig ? ' Alles abgerufen.' : ' Der Rest folgt automatisch.')); loadThreads(); renderSettings(); } catch (err) { toast('Abruf: ' + err.message); b.disabled = false; b.textContent = 'Jetzt abrufen'; } return; }
   if (b.id === 'logout') { await sb.auth.signOut(); location.hash = ''; loginView(); return; }
   if (!t) return;
+  if (b.dataset.copy) { const v = b.dataset.copy; try { await navigator.clipboard.writeText(v); toast('Kopiert'); } catch (err) { toast(v); } return; }
   if (b.dataset.vm) { const [id, m] = b.dataset.vm.split(':'); viewMode[id] = m; redrawDetail(); return; }
   if (b.dataset.imgs) { showImgs[b.dataset.imgs] = !showImgs[b.dataset.imgs]; redrawDetail(); return; }
   if (b.dataset.quote) { showQuote[b.dataset.quote] = !showQuote[b.dataset.quote]; redrawDetail(); return; }
