@@ -703,8 +703,9 @@ async function mfaView() {
   const verified = (f?.totp || []).find((x) => x.status === 'verified');
   let factorId = verified?.id, setup = '';
   if (!verified) {
-    for (const x of f?.totp || []) await sb.auth.mfa.unenroll({ factorId: x.id });
-    const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Authenticator ' + new Date().toISOString().slice(0, 10) });
+    // halb eingerichtete Faktoren (QR gezeigt, aber nie bestätigt) entfernen, sonst scheitert die Neueinrichtung
+    for (const x of (f?.all || []).filter((x) => x.status !== 'verified')) await sb.auth.mfa.unenroll({ factorId: x.id });
+    const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Loft Inbox ' + new Date().toISOString().slice(0, 16).replace('T', ' ') });
     if (error) return loginView('Zweiter Faktor konnte nicht eingerichtet werden: ' + error.message);
     factorId = data.id;
     setup = `<p class="sub">Einmalig: Scanne den Code mit deiner Authenticator-App.</p><div class="qr"><img alt="QR-Code" src="${data.totp.qr_code}"></div><p class="sub">Oder Schlüssel manuell eingeben:</p><div class="code">${esc(data.totp.secret)}</div>`;
