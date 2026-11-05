@@ -602,6 +602,29 @@ input,textarea{font-size:16px!important}
 .set{grid-column:2/4}
 body[data-view="set"] .list,body[data-view="set"] .detail{display:none}
 @media (max-width:760px){.set{grid-column:1}}
+
+/* Rechte Spalte: modernere Karten, eigene Auswahlfelder */
+.dside{background:color-mix(in srgb,var(--primary) 6%,var(--bg));gap:12px;padding:14px}
+.sbox2{background:var(--surface);border:1px solid color-mix(in srgb,var(--primary) 10%,var(--line));border-radius:16px;padding:14px;box-shadow:0 1px 2px rgb(15 20 50/.04),0 6px 18px rgb(15 20 50/.06);gap:10px}
+.sbox2 h3{color:var(--primary);display:flex;align-items:center;gap:6px}
+.sbox2 h3::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.prop{font-size:12px;font-weight:500;color:var(--mute);gap:5px}
+.selw{position:relative;display:block}
+.selw::after{content:"";position:absolute;right:16px;top:50%;width:7px;height:7px;border-right:2px solid var(--soft);border-bottom:2px solid var(--soft);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.ssel{appearance:none;-webkit-appearance:none;width:100%;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 42px 0 14px;font:500 14px var(--font);cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.ssel:hover{border-color:color-mix(in srgb,var(--primary) 40%,var(--line))}
+.ssel:focus-visible{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.ssel.is-offen{background:var(--orange-soft);border-color:transparent;color:var(--orange);font-weight:600}
+.ssel.is-beantwortet{background:var(--primary-soft);border-color:transparent;color:var(--primary);font-weight:600}
+.ssel.is-gebucht{background:var(--green-soft);border-color:transparent;color:var(--green);font-weight:600}
+.ssel.is-abgeschlossen{background:var(--grey-soft);border-color:transparent;color:var(--mute);font-weight:600}
+.ssel.is-spam,.ssel.is-phoch{background:var(--red-soft);border-color:transparent;color:var(--red);font-weight:600}
+.dside .md{height:30px;border-radius:9px;font-size:12.5px;font-weight:500}
+.dside .md.today>span:first-child{width:26px;height:26px}
+.orow{background:var(--bg);border:1px solid var(--line)}
+.orow:hover{border-color:color-mix(in srgb,var(--primary) 40%,var(--line))}
+/* Erstanfrage ohne dicken blauen Rahmen */
+.mail.first{border-color:var(--line);box-shadow:none}
 </style>
 </head>
 <body data-view="auth">
@@ -939,17 +962,17 @@ function miniCal() {
 }
 function sideHTML(t) {
   const others = threads.filter((x) => x.email && x.email === t.email && x.id !== t.id).sort((a, b) => b.at - a.at);
-  const sel = (id, opts, val) => `<select class="ssel" data-prop="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(val ?? '') === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const sel = (id, opts, val, cls = '') => `<span class="selw"><select class="ssel ${cls}" data-prop="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(val ?? '') === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></span>`;
   return `<aside class="dside" aria-label="Details zur Anfrage">
    <section class="sbox2"><h3>Kontakt</h3><div class="ct">${avatar(t, false)}<div class="stx"><b>${esc(t.name)}</b><small>${esc(t.email)}</small></div></div>
     <button class="mini" data-copy="${esc(t.email)}">E-Mail kopieren</button>
     <p class="hint2">${others.length ? `${others.length} weitere ${others.length === 1 ? 'Anfrage' : 'Anfragen'} von dieser Adresse` : 'Erste Anfrage von dieser Adresse'}</p>
     ${others.slice(0, 5).map((o) => `<button class="orow" data-id="${o.id}"><span>${esc(o.subject)}</span><small>${fmtT(o.at)} · ${ST_LABEL[o.status]}</small></button>`).join('')}</section>
    <section class="sbox2"><h3>Eigenschaften</h3>
-    <label class="prop">Status${sel('status', Object.entries(ST_LABEL), t.status)}</label>
+    <label class="prop">Status${sel('status', Object.entries(ST_LABEL), t.status, 'is-' + t.status)}</label>
     <label class="prop">Studio${sel('studio', [['X', 'Nicht festgelegt'], ['P', 'Penthouse Loft'], ['F', 'Factory Loft']], t.studio)}</label>
     <label class="prop">Art der Anfrage${sel('cat', [['', 'Nicht festgelegt'], ...CATS.map((c) => [c, c])], t.cat || '')}</label>
-    <label class="prop">Priorität${sel('prio', [['hoch', 'Hoch'], ['normal', 'Normal'], ['niedrig', 'Niedrig']], t.prio)}</label></section>
+    <label class="prop">Priorität${sel('prio', [['hoch', 'Hoch'], ['normal', 'Normal'], ['niedrig', 'Niedrig']], t.prio, 'is-p' + t.prio)}</label></section>
    <section class="sbox2"><h3>Kalender</h3>${miniCal()}<p class="hint2">Belegung von Penthouse und Factory erscheint hier, sobald die Google-Kalender verbunden sind (nächster Schritt).</p></section>
   </aside>`;
 }
