@@ -53,6 +53,8 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 | Postfach | Nur mail@loftstudiocologne.com (Microsoft 365, über Microsoft Graph). bookings@ und support@ werden nicht gelesen |
 | Microsoft App "Loft Inbox", Anwendungs-ID (Client) | ddac8569-3b28-41e4-a4f1-f00f4914494a |
 | Microsoft Verzeichnis-ID (Mandant) | d10e43c7-ae2a-466b-aece-eb536ad78dfe |
+| Netlify-Adresse | https://loftstudiocologne-inbox.netlify.app |
+| Microsoft Umleitungs-URI | https://loftstudiocologne-inbox.netlify.app/api/ms/callback |
 | Google-Kalender | loftstudiocologne@gmail.com: "PENTHOUSE LOFT ANNY", "FACTORY LOFT ANNY" (Anny synchronisiert) |
 
 Der geheime Microsoft-Clientschlüssel kommt als `MS_CLIENT_SECRET` in die Umgebungsvariablen von Netlify und Supabase.

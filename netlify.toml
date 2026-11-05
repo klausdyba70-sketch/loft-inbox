@@ -10,3 +10,14 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Schöne Adressen für Funktionen, z. B. /api/ms/callback -> netlify/functions/ms-callback
+[[redirects]]
+  from = "/api/ms/callback"
+  to = "/.netlify/functions/ms-callback"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
