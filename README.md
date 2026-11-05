@@ -6,10 +6,11 @@ Anfragen-App für Loft Studio Cologne (Ersatz für Freshdesk). Ein Nutzer, Postf
 
 | Teil | Wo | Was |
 | --- | --- | --- |
-| `app/` | Netlify | Oberfläche (aus dem Prototyp), Login mit Passkey und Authenticator |
-| `netlify/functions/` | Netlify | Senden per SMTP, KI-Aufrufe, Freshdesk-Import |
+| `app/` | Netlify | Oberfläche, Login mit Passkey und Authenticator |
+| `docs/prototyp.html` | nur Referenz | Klickbarer Prototyp mit Beispieldaten, wird nicht veröffentlicht |
+| `netlify/functions/` | Netlify | Microsoft-Anmeldung, Senden über Microsoft Graph, KI-Aufrufe, Freshdesk-Import |
 | `supabase/migrations/` | Supabase | Datenbank-Schema und Zugriffsregeln |
-| `supabase/functions/` | Supabase | Zeitgesteuerter Mailabruf (IMAP), Notion- und Kalender-Abgleich |
+| `supabase/functions/` | Supabase | Zeitgesteuerter Mailabruf (Microsoft Graph), Notion- und Kalender-Abgleich |
 
 App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank-Änderungen laufen nur über neue Dateien in `supabase/migrations/`, die ausschließlich hinzufügen.
 
@@ -30,19 +31,31 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 | `SUPABASE_ANON_KEY` | "anon public" Schlüssel aus Supabase | nein |
 | `SUPABASE_SERVICE_ROLE_KEY` | "service_role" Schlüssel aus Supabase | **ja** |
 | `ANTHROPIC_API_KEY` | API-Schlüssel aus console.anthropic.com | **ja** |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` | Versandserver von domainFACTORY | nein |
-| `SMTP_PASSWORD` | Passwort von mail@ | **ja** |
+| `MS_TENANT_ID` / `MS_CLIENT_ID` | Microsoft-Verzeichnis- und Anwendungs-ID | nein |
+| `MS_CLIENT_SECRET` | Geheimer Clientschlüssel der App "Loft Inbox" | **ja** |
 | `FRESHDESK_DOMAIN` / `FRESHDESK_API_KEY` | nur für den Import, danach löschen | **ja** |
 
 **Supabase** (Edge Functions, Secrets):
 
 | Name | Inhalt | Geheim |
 | --- | --- | --- |
-| `IMAP_HOST` / `IMAP_PORT` / `IMAP_USER` | Abrufserver von domainFACTORY | nein |
-| `IMAP_PASSWORD` | Passwort von mail@ | **ja** |
+| `MS_TENANT_ID` / `MS_CLIENT_ID` | Microsoft-Verzeichnis- und Anwendungs-ID (siehe unten) | nein |
+| `MS_CLIENT_SECRET` | Geheimer Clientschlüssel der App "Loft Inbox" | **ja** |
 | `ANTHROPIC_API_KEY` | wie oben | **ja** |
 | `NOTION_TOKEN` | Schlüssel der Notion-Integration | **ja** |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | aus dem Google-Cloud-Projekt (Phase 3) | **ja** |
+
+## Bekannte, nicht geheime Werte
+
+| Was | Wert |
+| --- | --- |
+| Supabase-Projekt | https://welzlrpiseuewrdjhids.supabase.co |
+| Postfach | Nur mail@loftstudiocologne.com (Microsoft 365, über Microsoft Graph). bookings@ und support@ werden nicht gelesen |
+| Microsoft App "Loft Inbox", Anwendungs-ID (Client) | ddac8569-3b28-41e4-a4f1-f00f4914494a |
+| Microsoft Verzeichnis-ID (Mandant) | d10e43c7-ae2a-466b-aece-eb536ad78dfe |
+| Google-Kalender | loftstudiocologne@gmail.com: "PENTHOUSE LOFT ANNY", "FACTORY LOFT ANNY" (Anny synchronisiert) |
+
+Der geheime Microsoft-Clientschlüssel kommt als `MS_CLIENT_SECRET` in die Umgebungsvariablen von Netlify und Supabase.
 
 ## Ersteinrichtung Supabase
 
