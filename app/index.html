@@ -509,6 +509,8 @@ body:not([data-view="contacts"]) .contacts{display:none}
 @media (prefers-reduced-motion:reduce){.typing i{animation:none}}
 
 /* echte App: Anmeldung, Feinschliff */
+.row.isclosed{opacity:.5}
+.row.isclosed:hover{opacity:.8}
 #root{height:100%}
 input,textarea{font-size:16px!important}
 .center{min-height:100%;display:grid;place-items:center;padding:24px var(--gr) 24px var(--g);overflow-y:auto}
@@ -677,6 +679,7 @@ async function loadThreads() {
   if (error) { toast(error.message); return; }
   threads = data.map(fromDb);
   if (current) current = threads.find((t) => t.id === current.id) || null;
+  if (!current && !loadThreads.done && matchMedia('(min-width:761px)').matches) { loadThreads.done = true; const first = threads.filter((t) => t.status === 'offen').sort((a, b) => sortKey(a) - sortKey(b))[0]; if (first) { openThread(first.id); return; } }
   if (view === 'inbox') { renderList(); if (current && !$('#draft')) { $('#detail').innerHTML = detailHTML(); bindDetail(); } }
   const oc = threads.filter((t) => t.status === 'offen').length, nc = $('#navcnt'); if (nc) { nc.textContent = oc; nc.hidden = !oc; }
 }
@@ -716,7 +719,7 @@ function rowsHTML() {
     const w = waitingH(t), bk = bucket(t);
     const gh = grouped && bk[0] !== lastB ? `<div class="grp">${bk[1]}<span>${list.filter((x) => bucket(x)[0] === bk[0]).length}</span></div>` : ''; lastB = bk[0];
     const sel = selected.has(t.id), closed = t.status === 'abgeschlossen' && filter !== 'abgeschlossen';
-    return gh + `<button class="row ${t.unread ? 'unread' : ''} ${closed ? 'closed' : ''} ${selMode ? 'selm' : ''} ${sel ? 'sel' : ''}" ${selMode ? `data-sel="${t.id}"` : `data-id="${t.id}" aria-current="${current?.id === t.id}"`}>
+    return gh + `<button class="row ${t.unread ? 'unread' : ''} ${closed ? 'isclosed' : ''} ${selMode ? 'selm' : ''} ${sel ? 'sel' : ''}" ${selMode ? `data-sel="${t.id}"` : `data-id="${t.id}" aria-current="${current?.id === t.id}"`}>
      ${selMode ? `<span class="cbx ${sel ? 'on' : ''}">${sel ? '✓' : ''}</span>` : ''}${avatar(t)}
      <span class="rc"><span class="r1"><b>${esc(t.name)}</b>${t.star ? '<span class="star">★</span>' : ''}<time>${fmtT(t.at)}</time></span>
      <span class="r2">${esc(t.subject)}</span>
