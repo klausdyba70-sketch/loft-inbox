@@ -509,6 +509,19 @@ body:not([data-view="contacts"]) .contacts{display:none}
 @media (prefers-reduced-motion:reduce){.typing i{animation:none}}
 
 /* echte App: Anmeldung, Feinschliff */
+.cbar{position:relative}
+.saved{font-size:12px;color:var(--mute)}
+.split{position:relative;display:flex}
+.split .send{display:inline-flex;align-items:center;gap:7px;border-radius:11px 0 0 11px}
+.split .send svg{width:16px;height:16px}
+.split .send.caret{border-radius:0 11px 11px 0;padding:0 11px;margin-left:1px}
+.split .send:disabled{opacity:.6}
+.smenu{position:absolute;right:0;bottom:calc(100% + 8px);width:290px;max-width:calc(100vw - 32px);background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgb(0 0 0/.16);padding:8px;z-index:20;display:flex;flex-direction:column}
+.smenu h4{margin:6px 8px 6px;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.smenu button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:8px 10px;border-radius:9px}
+.smenu button:hover,.smenu button:focus-visible{background:var(--sunk)}
+.smenu b{font-size:14px;font-weight:600}
+.smenu small{font-size:12px;color:var(--mute)}
 .mkrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .swb{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 8px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-size:12.5px;color:var(--soft)}
 .swb i{width:12px;height:12px;border-radius:50%;background:var(--c)}
@@ -795,7 +808,10 @@ function detailHTML() {
   <footer class="composer"><div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
    <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
    <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …">${esc(drafts[t.id] || '')}</textarea>
-   <div class="cbar"><span class="sp" style="flex:1"></span><button class="send" id="send">Senden</button></div>`}</div></footer>`;
+   <div class="cbar"><small class="saved" id="saved">${drafts[t.id] ? 'Entwurf gespeichert' : ''}</small><span class="sp" style="flex:1"></span>
+    <button class="icon" id="discard" title="Entwurf verwerfen" aria-label="Entwurf verwerfen" ${drafts[t.id] ? '' : 'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg></button>
+    <div class="split">${sendMenu ? `<div class="smenu" role="menu"><h4>Senden und festlegen als</h4>${SEND_AS.map(([k, l, sub]) => `<button role="menuitem" data-sendas="${k}"><b>${l}</b><small>${sub}</small></button>`).join('')}</div>` : ''}
+     <button class="send" id="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>Senden</button><button class="send caret" id="sendmenu" aria-label="Senden und Status festlegen" aria-expanded="${sendMenu}">▾</button></div></div>`}</div></footer>`;
 }
 function frameDoc(html, imgs, quote) {
   const csp = `default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data: cid:${imgs ? ' https: http:' : ''};`;
@@ -807,7 +823,7 @@ function frameDoc(html, imgs, quote) {
 }
 function fitFrame(f) { try { const d = f.contentDocument; if (d) f.style.height = Math.max(60, d.documentElement.scrollHeight) + 'px'; } catch (e) {} }
 function bindDetail() {
-  const d = $('#draft'); if (d) d.oninput = () => (drafts[current.id] = d.value);
+  const d = $('#draft'); let st; if (d) d.oninput = () => { drafts[current.id] = d.value; clearTimeout(st); st = setTimeout(() => { saveDrafts(); const sv = $('#saved'); if (sv) sv.textContent = d.value ? 'Entwurf gespeichert' : ''; const ds = $('#discard'); if (ds) ds.disabled = !d.value; }, 600); };
   document.querySelectorAll('.mframe').forEach((f) => {
     const m = msgs.find((x) => x.id === f.dataset.mid); if (!m) return;
     f.onload = () => { fitFrame(f); setTimeout(() => fitFrame(f), 400); setTimeout(() => fitFrame(f), 1500); };
@@ -833,11 +849,29 @@ async function openThread(id) {
   renderList(); $('#detail').innerHTML = detailHTML(); bindDetail();
   const sc = $('#dscroll'); if (sc) sc.scrollTop = 0;
 }
-async function sendReply() {
+const SEND_AS = [
+  ['beantwortet', 'Wartet auf Kunde', 'Standard nach einer Antwort'],
+  ['angebot', 'Angebot gesendet', 'Wartet auf Kunde, Markierung "Angebot offen"'],
+  ['gebucht', 'Gebucht', 'Termin steht, Markierung "Zugesagt"'],
+  ['abgeschlossen', 'Abgeschlossen', 'Nichts mehr zu tun'],
+  ['offen', 'Offen lassen', 'Ich melde mich noch einmal'],
+];
+let sendMenu = false;
+try { Object.assign(drafts, JSON.parse(localStorage.getItem('li-drafts') || '{}')); } catch (e) {}
+const saveDrafts = () => { try { localStorage.setItem('li-drafts', JSON.stringify(Object.fromEntries(Object.entries(drafts).filter(([, v]) => v)))); } catch (e) {} };
+async function sendReply(as = 'beantwortet') {
   const t = current, body = ($('#draft').value || '').trim(); if (!body) return toast('Die Antwort ist leer.');
-  const b = $('#send'); b.disabled = true; b.textContent = 'Sende …';
-  try { await api('/api/send', { threadId: t.id, body }); drafts[t.id] = ''; toast('Gesendet'); await loadThreads(); await openThread(t.id); const sc = $('#dscroll'); if (sc) sc.scrollTop = 1e9; }
-  catch (e) { toast(e.message); b.disabled = false; b.textContent = 'Senden'; }
+  sendMenu = false;
+  const b = $('#send'); b.disabled = true; b.lastChild.textContent = 'Sende …'; $('#sendmenu').disabled = true;
+  try {
+    await api('/api/send', { threadId: t.id, body });
+    drafts[t.id] = ''; saveDrafts();
+    const fields = { angebot: { status: 'beantwortet', color: 'orange' }, gebucht: { status: 'gebucht', color: 'gruen' }, abgeschlossen: { status: 'abgeschlossen' }, offen: { status: 'offen' }, beantwortet: { status: 'beantwortet' } }[as];
+    await loadThreads();
+    const fresh = threads.find((x) => x.id === t.id); if (fresh) await patch(fresh, fields);
+    toast('Gesendet · ' + SEND_AS.find((x) => x[0] === as)[1]);
+    await openThread(t.id); const sc = $('#dscroll'); if (sc) sc.scrollTop = 1e9;
+  } catch (e) { toast(e.message); b.disabled = false; b.lastChild.textContent = 'Senden'; $('#sendmenu').disabled = false; }
 }
 
 // ---------- Optionen ----------
@@ -879,7 +913,9 @@ async function renderSettings() {
 // ---------- Klicks ----------
 document.addEventListener('click', async (e) => {
   if (e.target.id === 'scrim') { sheet = null; render(); return; }
-  const b = e.target.closest('button'); if (!b || !sb) return;
+  const b = e.target.closest('button');
+  if (sendMenu && !(b && (b.id === 'sendmenu' || b.dataset.sendas))) { sendMenu = false; if (current) redrawDetail(); if (!b) return; }
+  if (!b || !sb) return;
   const t = current;
   if (b.dataset.view) { view = b.dataset.view; sheet = null; history.replaceState(null, '', view === 'set' ? '#einstellungen' : '#'); render(); return; }
   if (b.dataset.f) { filter = b.dataset.f; page = 0; renderList(); return; }
@@ -919,7 +955,10 @@ document.addEventListener('click', async (e) => {
   if (b.dataset.p) { await patch(t, { prio: b.dataset.p }); render(); return; }
   if (b.dataset.st) { await patch(t, { status: b.dataset.st }); render(); return; }
   if (b.id === 'spam') { await patch(t, { status: t.status === 'spam' ? 'offen' : 'spam' }); sheet = null; toast(t.status === 'spam' ? 'Als Spam markiert' : 'Zurück in Anfragen'); render(); return; }
-  if (b.id === 'send') { sendReply(); return; }
+  if (b.id === 'send') { sendReply('beantwortet'); return; }
+  if (b.id === 'sendmenu') { sendMenu = !sendMenu; redrawDetail(); return; }
+  if (b.dataset.sendas) { sendReply(b.dataset.sendas); return; }
+  if (b.id === 'discard') { drafts[t.id] = ''; saveDrafts(); redrawDetail(); toast('Entwurf verworfen'); return; }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheet) { sheet = null; render(); } });
 
