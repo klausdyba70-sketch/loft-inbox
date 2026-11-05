@@ -5,6 +5,19 @@ const SELECT = 'id,conversationId,internetMessageId,subject,from,toRecipients,cc
 const FOLDERS = ['inbox', 'sentitems'];
 const MAX_PAGES_PER_RUN = 20; // hält jeden Lauf kurz; der Rest folgt beim nächsten Lauf
 
+// HTML grob in lesbaren Text umwandeln (für Suche, KI und Vorschau)
+export function htmlToText(html) {
+  if (!html) return '';
+  if (!/<[a-z!][\s\S]*>/i.test(html)) return html;
+  let t = html.replace(/<(head|style|script)[\s\S]*?<\/\1>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|tr|li|h[1-6]|table|blockquote)>/gi, '\n').replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
+  return t.split('\n').map((l) => l.replace(/[ \t\u00a0]+/g, ' ').trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+const MAX_HTML = 400_000;
+
 export const cleanSubject = (s) => (s || '').replace(/^\s*((re|aw|wg|fw|fwd|antw)\s*:\s*)+/i, '').trim() || '(ohne Betreff)';
 
 // Trennt Signatur und zitierten Verlauf grob ab, damit der Verlauf lesbar bleibt
@@ -36,7 +49,8 @@ export function mapMessage(m) {
       to_addr: to.join(', '),
       cc: (m.ccRecipients || []).map((r) => r.emailAddress?.address).filter(Boolean).join(', ') || null,
       subject: m.subject || null,
-      body_text: splitBody(m.body?.content || m.bodyPreview || ''),
+      body_text: splitBody(m.body?.contentType === 'html' ? htmlToText(m.body.content) : m.body?.content || m.bodyPreview || ''),
+      body_html: m.body?.contentType === 'html' && m.body.content.length < MAX_HTML ? m.body.content : null,
       sent_at: m.sentDateTime || m.receivedDateTime,
     },
     subject: cleanSubject(m.subject),
@@ -106,7 +120,7 @@ export async function runSync(db, { budgetMs = 8000 } = {}) {
     const counts = { neu: 0, doppelt: 0, übersprungen: 0 };
     let saved = null;
     for (let page = 0; page < MAX_PAGES_PER_RUN && url && timeLeft(); page++) {
-      const res = await graph(token, url, { headers: { Prefer: 'outlook.body-content-type="text", odata.maxpagesize=10' } });
+      const res = await graph(token, url, { headers: { Prefer: 'outlook.body-content-type="html", odata.maxpagesize=10' } });
       // Seite ganz verarbeiten, damit der Fortschritt sauber gespeichert wird; doppelte werden übersprungen
       for (const m of res.value || []) {
         if (m['@removed']) continue;

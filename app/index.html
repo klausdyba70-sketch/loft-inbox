@@ -509,6 +509,16 @@ body:not([data-view="contacts"]) .contacts{display:none}
 @media (prefers-reduced-motion:reduce){.typing i{animation:none}}
 
 /* echte App: Anmeldung, Feinschliff */
+.mkrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.swb{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 8px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-size:12.5px;color:var(--soft)}
+.swb i{width:12px;height:12px;border-radius:50%;background:var(--c)}
+.swb[aria-pressed="true"]{background:color-mix(in srgb,var(--c) 14%,var(--surface));border-color:var(--c);color:var(--ink);font-weight:600}
+.swb.clear{padding:0 10px;font-size:16px}
+.mtools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:0 14px 10px 58px}
+.mtools .seg button{height:26px}
+.mframe{display:block;width:calc(100% - 28px);margin:0 14px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;height:120px}
+.mload{color:var(--mute)}
+@media (max-width:760px){.mtools{padding-left:14px}.swb span{display:none}.swb{padding:0 8px}}
 .row.isclosed{opacity:.5}
 .row.isclosed:hover{opacity:.8}
 #root{height:100%}
@@ -560,6 +570,7 @@ const MAILBOX = 'mail@loftstudiocologne.com';
 
 let sb, threads = [], current = null, msgs = [], view = 'inbox';
 let filter = 'alle', tfil = 'alle', query = '', msgHits = null, page = 0, pageSize = 25;
+let viewMode = {}, showImgs = {}, showQuote = {};
 let selMode = false, selected = new Set(), sheet = null, drafts = {}, expanded = {}, settings = { theme: 'system' };
 try { const ps = JSON.parse(localStorage.getItem('li-prefs') || '{}'); if (ps.pageSize) pageSize = ps.pageSize; if (ps.theme) settings.theme = ps.theme; } catch (e) {}
 const savePrefs = () => { try { localStorage.setItem('li-prefs', JSON.stringify({ pageSize, theme: settings.theme })); } catch (e) {} };
@@ -760,7 +771,10 @@ function detailHTML() {
     const head = `<span class="mmeta"><span class="n"><b>${esc(who)}</b><time>${fmtFull(m.sent_at)}</time></span><span class="to">an ${esc(m.direction === 'in' ? MAILBOX : t.email)}</span>${open ? '' : `<span class="pv">${esc(m.body_text.replace(/\s+/g, ' ').slice(0, 100))}</span>`}${i === firstIn ? '<span class="tagfirst">Erstanfrage</span>' : ''}</span>`;
     const av = avatar({ name: m.direction === 'in' ? t.name : 'Klaus Dyba' }, false);
     if (!open) return `<div class="mail"><button class="mhead" data-exp="${key}">${av}${head}</button></div>`;
-    return `<div class="mail ${i === firstIn ? 'first' : ''}"><div class="mhead">${av}${head}</div><div class="mbody">${esc(m.body_text)}</div></div>`;
+    const mode = viewMode[m.id] || (m.body_html || m.graph_id ? 'html' : 'text');
+    const tools = m.body_html || m.graph_id ? `<div class="mtools"><div class="seg"><button data-vm="${m.id}:html" aria-pressed="${mode === 'html'}">Original</button><button data-vm="${m.id}:text" aria-pressed="${mode === 'text'}">Text</button></div>${mode === 'html' ? `<button class="mini" data-imgs="${m.id}">${showImgs[m.id] ? 'Bilder aus' : 'Bilder laden'}</button><button class="mini" data-quote="${m.id}">${showQuote[m.id] ? 'Verlauf aus' : 'Verlauf'}</button>` : ''}</div>` : '';
+    const body = mode === 'html' ? (m.body_html ? `<iframe class="mframe" data-mid="${m.id}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="E-Mail"></iframe>` : `<div class="mbody mload">Original wird geladen …</div>`) : `<div class="mbody">${esc(m.body_text)}</div>`;
+    return `<div class="mail ${i === firstIn ? 'first' : ''}"><div class="mhead">${av}${head}</div>${tools}${body}</div>`;
   }).join('');
   return `<header class="dh"><button class="icon back" id="back" aria-label="Zurück">${I.back}</button>${avatar(t)}
    <div class="dh-t"><b>${esc(t.name)}</b><small>${esc(t.email)}</small></div>
@@ -769,6 +783,7 @@ function detailHTML() {
    <button class="icon" id="more" aria-label="Optionen">${I.more}</button></header>
   <div class="dscroll" id="dscroll"><div class="dinner">
    <h2>${esc(t.subject)}</h2>
+   <div class="mkrow" role="group" aria-label="Markierung">${Object.keys(COLORS).map((c) => `<button class="swb" data-c="${c}" aria-pressed="${t.color === c}" title="${COLOR_NAMES[c]}" style="--c:${COLORS[c]}"><i></i><span>${COLOR_NAMES[c]}</span></button>`).join('')}${t.color ? '<button class="swb clear" data-c="none" title="Markierung entfernen">×</button>' : ''}</div>
    <div class="pills">${stPill(t)}${t.prio === 'hoch' && t.status === 'offen' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color ? `<span class="pill"><span class="d" style="--c:${COLORS[t.color]}"></span>${COLOR_NAMES[t.color]}</span>` : ''}${t.studio !== 'X' ? `<span class="pill">${STUDIO[t.studio]}</span>` : ''}${t.cat ? `<span class="pill">${esc(t.cat)}</span>` : ''}</div>
    ${t.summary ? `<div class="sum"><div class="ah">${I.spark}Zusammenfassung</div>${esc(t.summary)}</div>` : ''}
    <div class="vbar"><span>Verlauf · ${msgs.length} ${msgs.length === 1 ? 'Nachricht' : 'Nachrichten'}</span></div>
@@ -779,13 +794,36 @@ function detailHTML() {
    <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …">${esc(drafts[t.id] || '')}</textarea>
    <div class="cbar"><span class="sp" style="flex:1"></span><button class="send" id="send">Senden</button></div>`}</div></footer>`;
 }
+function frameDoc(html, imgs, quote) {
+  const csp = `default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data: cid:${imgs ? ' https: http:' : ''};`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><base target="_blank"><style>
+  html,body{margin:0;padding:0;background:#fff;color:#151826}body{font:15px/1.5 -apple-system,system-ui,sans-serif;padding:16px;overflow-wrap:anywhere;word-break:break-word}
+  img{max-width:100%!important;height:auto!important}table{max-width:100%!important}pre{white-space:pre-wrap}a{color:#2b4fe0}
+  ${quote ? '' : '#divRplyFwdMsg,#divRplyFwdMsg~*,#appendonsend~*,.gmail_quote,blockquote[type="cite"],div[style*="border-top:solid #E1E1E1"],div[style*="border-top: solid #E1E1E1"]{display:none!important}'}
+  </style></head><body>${html}</body></html>`;
+}
+function fitFrame(f) { try { const d = f.contentDocument; if (d) f.style.height = Math.max(60, d.documentElement.scrollHeight) + 'px'; } catch (e) {} }
 function bindDetail() {
   const d = $('#draft'); if (d) d.oninput = () => (drafts[current.id] = d.value);
+  document.querySelectorAll('.mframe').forEach((f) => {
+    const m = msgs.find((x) => x.id === f.dataset.mid); if (!m) return;
+    f.onload = () => { fitFrame(f); setTimeout(() => fitFrame(f), 400); setTimeout(() => fitFrame(f), 1500); };
+    f.srcdoc = frameDoc(m.body_html, !!showImgs[m.id], !!showQuote[m.id]);
+  });
+  // ältere Mails ohne gespeichertes HTML nachladen
+  const missing = msgs.filter((m) => !m.body_html && m.graph_id && (viewMode[m.id] || 'html') === 'html' && !m._loading && document.querySelector(`[data-vm="${m.id}:html"]`));
+  missing.slice(0, 4).forEach(async (m) => {
+    m._loading = true;
+    try { const r = await api('/api/message-html?id=' + encodeURIComponent(m.id)); m.body_html = r.html; if (!r.html) viewMode[m.id] = 'text'; }
+    catch (e) { viewMode[m.id] = 'text'; }
+    if (current && msgs.includes(m)) { const s = $('#dscroll')?.scrollTop; $('#detail').innerHTML = detailHTML(); bindDetail(); if ($('#dscroll')) $('#dscroll').scrollTop = s; }
+  });
 }
+function redrawDetail() { const s = $('#dscroll')?.scrollTop; $('#detail').innerHTML = detailHTML(); bindDetail(); if ($('#dscroll')) $('#dscroll').scrollTop = s; }
 async function openThread(id) {
   current = threads.find((t) => t.id === id); msgs = []; sheet = null;
   document.body.classList.add('open'); render();
-  const { data } = await sb.from('messages').select('id,direction,body_text,sent_at').eq('thread_id', id).order('sent_at');
+  const { data } = await sb.from('messages').select('id,direction,body_text,body_html,sent_at,graph_id').eq('thread_id', id).order('sent_at');
   if (current?.id !== id) return;
   msgs = data || [];
   if (current.unread) patch(current, { unread: false });
@@ -864,12 +902,15 @@ document.addEventListener('click', async (e) => {
   if (b.id === 'sync') { b.disabled = true; b.textContent = 'Abruf läuft …'; try { const r = await api('/api/sync', {}); const n = r.result.inbox.neu + r.result.sentitems.neu; toast(`${n} neue Nachrichten.` + (r.result.inbox.fertig && r.result.sentitems.fertig ? ' Alles abgerufen.' : ' Der Rest folgt automatisch.')); loadThreads(); renderSettings(); } catch (err) { toast('Abruf: ' + err.message); b.disabled = false; b.textContent = 'Jetzt abrufen'; } return; }
   if (b.id === 'logout') { await sb.auth.signOut(); location.hash = ''; loginView(); return; }
   if (!t) return;
+  if (b.dataset.vm) { const [id, m] = b.dataset.vm.split(':'); viewMode[id] = m; redrawDetail(); return; }
+  if (b.dataset.imgs) { showImgs[b.dataset.imgs] = !showImgs[b.dataset.imgs]; redrawDetail(); return; }
+  if (b.dataset.quote) { showQuote[b.dataset.quote] = !showQuote[b.dataset.quote]; redrawDetail(); return; }
   if (b.dataset.exp) { expanded[b.dataset.exp] = true; const s = $('#dscroll').scrollTop; $('#detail').innerHTML = detailHTML(); bindDetail(); $('#dscroll').scrollTop = s; return; }
   if (b.id === 'star') { await patch(t, { star: !t.star }); render(); return; }
   if (b.id === 'done') { await patch(t, { status: t.status === 'abgeschlossen' ? 'offen' : 'abgeschlossen' }); toast(t.status === 'abgeschlossen' ? 'Erledigt' : 'Wieder offen'); render(); return; }
   if (b.id === 'reopen') { await patch(t, { status: 'offen' }); render(); return; }
   if (b.id === 'more') { sheet = 'more'; render(); return; }
-  if (b.dataset.c) { await patch(t, { color: b.dataset.c === 'none' ? null : b.dataset.c }); render(); return; }
+  if (b.dataset.c) { const v = b.dataset.c === 'none' || b.dataset.c === t.color ? null : b.dataset.c; await patch(t, { color: v }); if (sheet) render(); else { renderList(); redrawDetail(); } return; }
   if (b.dataset.s) { await patch(t, { studio: b.dataset.s }); render(); return; }
   if (b.dataset.cat) { await patch(t, { cat: t.cat === b.dataset.cat ? null : b.dataset.cat }); render(); return; }
   if (b.dataset.p) { await patch(t, { prio: b.dataset.p }); render(); return; }
