@@ -623,6 +623,10 @@ body[data-view="set"] .list,body[data-view="set"] .detail{display:none}
 .dside .md.today>span:first-child{width:26px;height:26px}
 .orow{background:var(--bg);border:1px solid var(--line)}
 .orow:hover{border-color:color-mix(in srgb,var(--primary) 40%,var(--line))}
+/* Antwortbereich: Luft nach unten, nie abgeschnitten */
+.composer{padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))!important;flex:none}
+.composer .cbar{padding-top:4px}
+#draft{max-height:50vh}
 /* Erstanfrage ohne dicken blauen Rahmen */
 .mail.first{border-color:var(--line);box-shadow:none}
 </style>
@@ -882,7 +886,7 @@ function detailHTML() {
   </div></div>
   <footer class="composer">${closed ? '' : '<div class="grip" id="grip" role="separator" aria-orientation="horizontal" aria-label="Antwortfeld vergrößern oder verkleinern" tabindex="0"><i></i></div>'}<div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
    <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
-   <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${composerH}px">${esc(drafts[t.id] || '')}</textarea>
+   <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${Math.min(composerH, Math.round(innerHeight * 0.5))}px">${esc(drafts[t.id] || '')}</textarea>
    <div class="cbar"><small class="saved" id="saved">${drafts[t.id] ? 'Entwurf gespeichert' : ''}</small><span class="sp" style="flex:1"></span>
     <button class="icon" id="discard" title="Entwurf verwerfen" aria-label="Entwurf verwerfen" ${drafts[t.id] ? '' : 'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg></button>
     <div class="split">${sendMenu ? `<div class="smenu" role="menu"><h4>Senden und festlegen als</h4>${SEND_AS.map(([k, l, sub]) => `<button role="menuitem" data-sendas="${k}"><b>${l}</b><small>${sub}</small></button>`).join('')}</div>` : ''}
@@ -996,7 +1000,7 @@ function startDrag(e, el, onMove, onEnd) {
 document.addEventListener('pointerdown', (e) => {
   const g = e.target.closest('#grip'); if (!g) return;
   const ta = $('#draft'); if (!ta) return;
-  const y0 = e.clientY, h0 = ta.offsetHeight, maxH = Math.max(160, ($('#detail').clientHeight || 600) * 0.7);
+  const y0 = e.clientY, h0 = ta.offsetHeight, maxH = Math.max(160, Math.min(innerHeight * 0.5, ($('#detail').clientHeight || 600) * 0.6));
   startDrag(e, g, (ev) => { composerH = Math.round(Math.min(maxH, Math.max(56, h0 + (y0 - ev.clientY)))); ta.style.height = composerH + 'px'; },
     () => { try { localStorage.setItem('li-composer-h', composerH); } catch (err) {} });
 });
