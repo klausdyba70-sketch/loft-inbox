@@ -3,7 +3,7 @@ import { graph, msAccessToken, MAILBOX } from './core.mjs';
 
 const SELECT = 'id,conversationId,internetMessageId,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,body,bodyPreview,isRead';
 const FOLDERS = ['inbox', 'sentitems'];
-const MAX_PAGES_PER_RUN = 4; // hält jeden Lauf kurz; der Rest folgt beim nächsten Lauf
+const MAX_PAGES_PER_RUN = 20; // hält jeden Lauf kurz; der Rest folgt beim nächsten Lauf
 
 export const cleanSubject = (s) => (s || '').replace(/^\s*((re|aw|wg|fw|fwd|antw)\s*:\s*)+/i, '').trim() || '(ohne Betreff)';
 
@@ -93,7 +93,10 @@ async function storeMessage(db, raw) {
   return 'neu';
 }
 
-export async function runSync(db) {
+// budgetMs: Zeitbudget pro Lauf. Netlify beendet normale Funktionen nach ca. 10 s, geplante nach 30 s.
+export async function runSync(db, { budgetMs = 8000 } = {}) {
+  const started = Date.now();
+  const timeLeft = () => Date.now() - started < budgetMs;
   const token = await msAccessToken(db);
   const result = {};
   for (const folder of FOLDERS) {
@@ -102,16 +105,18 @@ export async function runSync(db) {
     let url = st?.value?.next || st?.value?.delta || `/me/mailFolders/${folder}/messages/delta?$select=${SELECT}`;
     const counts = { neu: 0, doppelt: 0, übersprungen: 0 };
     let saved = null;
-    for (let page = 0; page < MAX_PAGES_PER_RUN && url; page++) {
-      const res = await graph(token, url, { headers: { Prefer: 'outlook.body-content-type="text", odata.maxpagesize=25' } });
+    for (let page = 0; page < MAX_PAGES_PER_RUN && url && timeLeft(); page++) {
+      const res = await graph(token, url, { headers: { Prefer: 'outlook.body-content-type="text", odata.maxpagesize=10' } });
+      // Seite ganz verarbeiten, damit der Fortschritt sauber gespeichert wird; doppelte werden übersprungen
       for (const m of res.value || []) {
         if (m['@removed']) continue;
         counts[await storeMessage(db, m)]++;
       }
       if (res['@odata.nextLink']) { url = res['@odata.nextLink']; saved = { next: url }; }
       else { saved = { delta: res['@odata.deltaLink'] }; url = null; }
+      if (saved) await db.from('sync_state').upsert({ key, value: saved, updated_at: new Date().toISOString() });
     }
-    if (saved) await db.from('sync_state').upsert({ key, value: saved, updated_at: new Date().toISOString() });
+    counts.fertig = !url;
     result[folder] = counts;
   }
   await db.from('sync_state').upsert({ key: 'graph:last_run', value: { at: new Date().toISOString(), result }, updated_at: new Date().toISOString() });

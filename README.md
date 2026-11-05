@@ -14,6 +14,13 @@ Anfragen-App für Loft Studio Cologne (Ersatz für Freshdesk). Ein Nutzer, Postf
 
 App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank-Änderungen laufen nur über neue Dateien in `supabase/migrations/`, die ausschließlich hinzufügen.
 
+## Postfach bleibt unangetastet (feste Regel)
+
+- Die App **liest** mail@ nur. Sie löscht, verschiebt oder markiert keine Mails, alles bleibt auf dem Microsoft-Server.
+- Mail auf dem Mac und die Weiterleitung an Freshdesk laufen unverändert weiter.
+- Antworten gehen über das Postfach raus und liegen danach im Ordner "Gesendet".
+- Status, Farben, Spam und Erledigt gelten nur in der App.
+
 ## Sicherheit
 
 - Zugriff auf alle Tabellen nur für den eingetragenen Besitzer **mit abgeschlossenem zweiten Faktor** (`aal2`). Geprüft in `public.is_owner()`.

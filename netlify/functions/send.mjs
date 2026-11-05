@@ -15,7 +15,7 @@ export default guard(async (req) => {
   await graph(token, `/me/messages/${encodeURIComponent(last.graph_id)}/reply`, { method: 'POST', body: JSON.stringify({ comment: html }) });
   await db.from('audit_log').insert({ action: 'antwort_gesendet', detail: { threadId } });
   // gesendete Mail gleich in den Verlauf holen
-  let synced = null; try { synced = await runSync(db); } catch (e) { console.error(e); }
+  let synced = null; try { synced = await runSync(db, { budgetMs: 4000 }); } catch (e) { console.error(e); }
   return json({ ok: true, synced });
 });
 export const config = { path: '/api/send' };

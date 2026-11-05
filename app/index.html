@@ -215,7 +215,7 @@ async function loadSettings() {
    <p class="sub">Bei der Microsoft-Anmeldung bitte mit mail@loftstudiocologne.com anmelden.</p></div>
   <div class="sc"><h3>Konto</h3><div class="kv"><span>Angemeldet als</span><b>${esc(u.user?.email)}</b></div><div class="cbar"><button class="btn sec" id="logout">Abmelden</button></div></div></div>`;
   $('#ms').onclick = async () => { try { const { url } = await api('/api/ms/start', {}); location.href = url; } catch (e) { toast(e.message); } };
-  $('#sync').onclick = async () => { $('#sync').disabled = true; try { const r = await api('/api/sync', {}); toast(`Abgerufen: ${r.result.inbox.neu + r.result.sentitems.neu} neue Nachrichten`); loadSettings(); } catch (e) { toast(e.message); $('#sync').disabled = false; } };
+  $('#sync').onclick = async () => { const b = $('#sync'); b.disabled = true; b.textContent = 'Abruf läuft …'; try { const r = await api('/api/sync', {}); const n = r.result.inbox.neu + r.result.sentitems.neu; const done = r.result.inbox.fertig && r.result.sentitems.fertig; toast(`${n} neue Nachrichten geholt.` + (done ? ' Alles abgerufen.' : ' Es gibt noch mehr, der Rest folgt automatisch alle 5 Minuten.')); loadSettings(); } catch (e) { toast('Abruf: ' + e.message); b.disabled = false; b.textContent = 'Jetzt abrufen'; } };
   $('#logout').onclick = async () => { await sb.auth.signOut(); location.hash = ''; loginView(); };
 }
 
