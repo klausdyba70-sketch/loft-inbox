@@ -515,6 +515,11 @@ body:not([data-view="contacts"]) .contacts{display:none}
 .lgrip::after{content:"";position:absolute;top:0;bottom:0;left:3px;width:2px;background:transparent;transition:background .15s}
 .lgrip:hover::after,.lgrip:focus-visible::after,body.resizing .lgrip::after{background:var(--primary)}
 body.resizing{cursor:col-resize;user-select:none}
+body.dragging{user-select:none}
+body.dragging iframe{pointer-events:none}
+.grip{height:20px}
+.lgrip{width:12px;right:-6px}
+.lgrip::after{left:5px}
 @media (max-width:760px){.lgrip{display:none}}
 .row{position:relative;cursor:pointer}
 .qa{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:10px;display:none;gap:4px;padding-left:12px;background:linear-gradient(90deg,transparent,var(--surface) 12px)}
@@ -953,14 +958,22 @@ document.addEventListener('change', async (e) => {
   renderList(); redrawDetail();
 });
 // Antwortfeld per Griff vergrößern
-document.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('#grip') == null) return;
-  const ta = $('#draft'); if (!ta) return;
+// Zieh-Helfer: Zeiger festhalten (auch über eingebetteten Mails), Bewegung pro Bildschirm-Frame bündeln
+function startDrag(e, el, onMove, onEnd) {
   e.preventDefault();
-  const y0 = e.clientY, h0 = ta.offsetHeight, maxH = Math.max(160, ($('#detail').clientHeight || 600) * 0.65);
-  const move = (ev) => { composerH = Math.round(Math.min(maxH, Math.max(56, h0 + (y0 - ev.clientY)))); ta.style.height = composerH + 'px'; };
-  const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); try { localStorage.setItem('li-composer-h', composerH); } catch (err) {} };
-  document.addEventListener('pointermove', move); document.addEventListener('pointerup', up);
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  document.body.classList.add('dragging');
+  let raf = 0, last = e;
+  const move = (ev) => { last = ev; if (!raf) raf = requestAnimationFrame(() => { raf = 0; onMove(last); }); };
+  const up = () => { cancelAnimationFrame(raf); document.body.classList.remove('dragging'); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); onEnd(); };
+  el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+}
+document.addEventListener('pointerdown', (e) => {
+  const g = e.target.closest('#grip'); if (!g) return;
+  const ta = $('#draft'); if (!ta) return;
+  const y0 = e.clientY, h0 = ta.offsetHeight, maxH = Math.max(160, ($('#detail').clientHeight || 600) * 0.7);
+  startDrag(e, g, (ev) => { composerH = Math.round(Math.min(maxH, Math.max(56, h0 + (y0 - ev.clientY)))); ta.style.height = composerH + 'px'; },
+    () => { try { localStorage.setItem('li-composer-h', composerH); } catch (err) {} });
 });
 document.addEventListener('keydown', (e) => {
   if (e.target.id !== 'grip' || !['ArrowUp', 'ArrowDown'].includes(e.key)) return;
@@ -997,13 +1010,11 @@ let listW = 380; try { listW = +localStorage.getItem('li-list-w') || 380; } catc
 const applyListW = () => document.documentElement.style.setProperty('--listw', listW + 'px');
 applyListW();
 document.addEventListener('pointerdown', (e) => {
-  if (!e.target.closest('#lgrip')) return;
-  e.preventDefault();
+  const g = e.target.closest('#lgrip'); if (!g) return;
   const x0 = e.clientX, w0 = listW;
   document.body.classList.add('resizing');
-  const move = (ev) => { listW = Math.round(Math.min(Math.max(280, w0 + ev.clientX - x0), Math.min(720, innerWidth - 420))); applyListW(); };
-  const up = () => { document.body.classList.remove('resizing'); document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); try { localStorage.setItem('li-list-w', listW); } catch (err) {} };
-  document.addEventListener('pointermove', move); document.addEventListener('pointerup', up);
+  startDrag(e, g, (ev) => { listW = Math.round(Math.min(Math.max(280, w0 + ev.clientX - x0), Math.min(720, innerWidth - 420))); applyListW(); },
+    () => { document.body.classList.remove('resizing'); try { localStorage.setItem('li-list-w', listW); } catch (err) {} });
 });
 document.addEventListener('keydown', (e) => {
   const row = e.target.closest?.('.row');
