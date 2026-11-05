@@ -518,7 +518,10 @@ body:not([data-view="contacts"]) .contacts{display:none}
 .mtools .seg button{height:26px}
 .mframe{display:block;width:calc(100% - 28px);margin:0 14px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;height:120px}
 .mload{color:var(--mute)}
-@media (max-width:760px){.mtools{padding-left:14px}.swb span{display:none}.swb{padding:0 8px}}
+@media (max-width:760px){.mtools{padding-left:14px}}
+.filters{flex-wrap:wrap;overflow:visible;row-gap:6px}
+.chip{height:28px;padding:0 10px;font-size:12.5px}
+.mkrow::before{content:"Markierung";font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);margin-right:2px}
 .row.isclosed{opacity:.5}
 .row.isclosed:hover{opacity:.8}
 #root{height:100%}
@@ -592,7 +595,7 @@ const FILTERS = [
   ['alle', 'Alle', (t) => t.status !== 'spam'],
   ['offen', 'Offen', (t) => t.status === 'offen'],
   ['wichtig', 'Wichtig', (t) => t.star || (t.prio === 'hoch' && t.status === 'offen')],
-  ['wartet', 'Wartet auf Kunde', (t) => t.status === 'beantwortet'],
+  ['wartet', 'Wartet', (t) => t.status === 'beantwortet'],
   ['gebucht', 'Gebucht', (t) => t.status === 'gebucht'],
   ['abgeschlossen', 'Abgeschlossen', (t) => t.status === 'abgeschlossen'],
   ['spam', 'Spam', (t) => t.status === 'spam'],
