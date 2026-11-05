@@ -1,0 +1,1303 @@
+<title>Loft Inbox</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: Desktop = Leiste | Liste | Verlauf. Mobil = eine Ansicht, Tabs unten. Kobaltblau als Leitfarbe, Violett für alles, was die KI macht. */
+:root{
+  --bg:#f3f4f8;--surface:#ffffff;--sunk:#eceef4;--line:#e2e4ec;--ink:#151826;--mute:#7c8196;--soft:#4a4f63;
+  --primary:#2b4fe0;--primary-soft:#e8edff;--on-primary:#ffffff;
+  --ai:#6d3fd6;--ai-soft:#f1ebff;--ai-line:#ddd0fb;
+  --bubble-out:#2b4fe0;--on-out:#ffffff;
+  --red:#e5484d;--red-soft:#fdecec;--orange:#e08a00;--orange-soft:#fff3dc;--green:#1f9d5c;--green-soft:#e3f6eb;
+  --blue:#2b4fe0;--violet:#8e4ec6;--grey-soft:#eceef4;
+  --font:"Geist",system-ui,-apple-system,sans-serif;--mono:"Geist Mono",ui-monospace,monospace;
+  --r:14px;--g:max(16px,env(safe-area-inset-left,0px));--gr:max(16px,env(safe-area-inset-right,0px));
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1117;--surface:#171a22;--sunk:#20232d;--line:#2a2e3a;--ink:#eceef4;--mute:#8a8fa3;--soft:#b6bacb;
+  --primary:#6f8cff;--primary-soft:#1e2647;--on-primary:#0f1117;--ai:#b79bff;--ai-soft:#251d3d;--ai-line:#3b2f63;
+  --bubble-out:#2f45a8;--on-out:#ffffff;--red-soft:#3a1d20;--orange-soft:#3a2c12;--green-soft:#15322a;--grey-soft:#262a35;--blue:#6f8cff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1117;--surface:#171a22;--sunk:#20232d;--line:#2a2e3a;--ink:#eceef4;--mute:#8a8fa3;--soft:#b6bacb;
+  --primary:#6f8cff;--primary-soft:#1e2647;--on-primary:#0f1117;--ai:#b79bff;--ai-soft:#251d3d;--ai-line:#3b2f63;
+  --bubble-out:#2f45a8;--on-out:#ffffff;--red-soft:#3a1d20;--orange-soft:#3a2c12;--green-soft:#15322a;--grey-soft:#262a35;--blue:#6f8cff;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--font);margin:0;-webkit-font-smoothing:antialiased}
+button,select,textarea,input{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0;padding:0}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+mark{background:#ffe27a;color:#151826;border-radius:3px;padding:0 1px}
+.app{height:100%;display:grid;grid-template-columns:76px 380px minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+.pane{min-width:0;min-height:0;display:flex;flex-direction:column}
+
+/* Navigation */
+.rail{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 0;border-right:1px solid var(--line);background:var(--surface)}
+.logo{width:36px;height:36px;border-radius:10px;background:var(--primary);color:var(--on-primary);display:grid;place-items:center;font-weight:700;margin-bottom:14px}
+.nav{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;width:62px;padding:8px 0;border-radius:12px;color:var(--mute);font-size:11px;font-weight:500}
+.nav svg{width:22px;height:22px}
+.nav[aria-current="page"]{color:var(--primary);background:var(--primary-soft)}
+.nav .cnt{position:absolute;top:3px;right:9px;min-width:17px;height:17px;border-radius:9px;background:var(--red);color:#fff;font:600 10px/17px var(--font);padding:0 4px}
+
+/* Liste */
+.list{background:var(--surface);border-right:1px solid var(--line)}
+.lh{display:flex;align-items:flex-end;gap:12px;padding:18px var(--gr) 10px var(--g)}
+.lh h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0;line-height:1.1}
+.lh p{margin:3px 0 0;color:var(--mute);font-size:13px}
+.lh .sp{flex:1}
+.hot{color:var(--red);font-weight:600}
+.ghost{height:34px;padding:0 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;font-weight:500;white-space:nowrap;background:var(--surface)}
+.search{padding:0 var(--gr) 10px var(--g);display:flex;gap:8px}
+.sbox{flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:12px;background:var(--sunk);border:1px solid transparent}
+.sbox:focus-within{border-color:var(--primary);background:var(--surface)}
+.sbox svg{width:18px;height:18px;color:var(--mute);flex:none}
+.sbox input{flex:1;min-width:0;border:0;background:none;outline:none;font-size:15px}
+.sbox input::placeholder{color:var(--mute)}
+.sbox .clr{color:var(--mute);font-size:18px;line-height:1;width:24px}
+.fbtn{position:relative;width:40px;height:40px;border-radius:12px;background:var(--sunk);display:grid;place-items:center;color:var(--soft);flex:none}
+.fbtn svg{width:18px;height:18px}
+.fbtn.on{background:var(--primary-soft);color:var(--primary)}
+.fbtn .cnt{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;border-radius:9px;background:var(--primary);color:var(--on-primary);font:600 10px/17px var(--font)}
+.asks{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 var(--gr) 10px var(--g)}
+.asks::-webkit-scrollbar{display:none}
+.asks button{flex:none;height:30px;padding:0 11px;border-radius:99px;background:var(--ai-soft);color:var(--ai);font-size:12.5px;font-weight:500;white-space:nowrap}
+.filters{display:flex;gap:6px;overflow-x:auto;padding:0 var(--gr) 12px var(--g);scrollbar-width:none;border-bottom:1px solid var(--line)}
+.filters::-webkit-scrollbar{display:none}
+.chip{flex:none;height:30px;padding:0 12px;border-radius:99px;background:var(--sunk);font-size:13px;font-weight:500;color:var(--soft)}
+.chip[aria-pressed="true"]{background:var(--primary);color:var(--on-primary)}
+.chip .n{font:12px var(--mono);margin-left:5px;opacity:.65}
+.rows{flex:1;overflow-y:auto;overscroll-behavior:contain}
+.answer{margin:12px var(--gr) 4px var(--g);background:var(--ai-soft);border:1px solid var(--ai-line);border-radius:var(--r);padding:12px 14px;font-size:14px}
+.answer .ah{display:flex;align-items:center;gap:6px;color:var(--ai);font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
+.answer .ah svg{width:14px;height:14px}
+.answer p{margin:0 0 6px}
+.answer .src{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.answer .src button{height:28px;padding:0 10px;border-radius:8px;background:var(--surface);border:1px solid var(--ai-line);font-size:12.5px;color:var(--ai);font-weight:500}
+.rcount{padding:10px var(--gr) 2px var(--g);font-size:12px;color:var(--mute)}
+.row{display:grid;grid-template-columns:40px minmax(0,1fr);gap:12px;width:100%;text-align:left;padding:13px var(--gr) 13px var(--g);border-bottom:1px solid var(--line)}
+.row[aria-current="true"]{background:var(--primary-soft)}
+.av{position:relative;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:14px;flex:none}
+.av .mk{position:absolute;right:-1px;bottom:-1px;width:13px;height:13px;border-radius:50%;background:var(--c);border:2.5px solid var(--surface)}
+.row[aria-current="true"] .av .mk{border-color:var(--primary-soft)}
+.rc{min-width:0;display:flex;flex-direction:column;gap:2px}
+.r1{display:flex;gap:8px;align-items:baseline}
+.r1 b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.row.unread .r1 b{font-weight:700}
+.r1 time{font:12px var(--mono);color:var(--mute);flex:none}
+.row.unread .r1 time{color:var(--primary);font-weight:500}
+.r2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--soft);font-size:14px}
+.row.unread .r2{color:var(--ink);font-weight:500}
+.r2s{font-size:13px;color:var(--mute);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.r3{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--mute);min-width:0;overflow:hidden;white-space:nowrap;margin-top:3px}
+.st{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:99px;font-size:11.5px;font-weight:600;flex:none}
+.st-offen{background:var(--orange-soft);color:var(--orange)}
+.st-beantwortet{background:var(--primary-soft);color:var(--primary)}
+.st-gebucht{background:var(--green-soft);color:var(--green)}
+.st-abgeschlossen{background:var(--grey-soft);color:var(--mute)}
+.st-spam{background:var(--red-soft);color:var(--red)}
+.st-hot{background:var(--red-soft);color:var(--red)}
+.star{color:var(--orange)}
+.empty{margin:auto;text-align:center;color:var(--mute);padding:40px 24px;max-width:340px}
+.empty b{display:block;color:var(--ink);margin-bottom:4px}
+
+/* Verlauf */
+.detail{background:var(--bg)}
+.dh{display:flex;align-items:center;gap:6px;padding:10px var(--gr) 10px var(--g);background:var(--surface);border-bottom:1px solid var(--line);min-height:60px}
+.icon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:none;color:var(--soft)}
+.icon:hover{background:var(--sunk)}
+.icon svg{width:20px;height:20px}
+.icon.star-on{color:var(--orange)}
+.icon.done-on{color:var(--green)}
+.back{display:none}
+.dh .av{width:36px;height:36px;font-size:13px}
+.dh-t{flex:1;min-width:0;margin-left:4px}
+.dh-t b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dh-t small{display:block;color:var(--mute);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dscroll{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:18px var(--gr) 24px var(--g)}
+.dinner{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.dinner h2{font-size:21px;font-weight:650;letter-spacing:-.015em;margin:0;text-wrap:balance;overflow-wrap:anywhere}
+.pills{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-size:12px;color:var(--soft)}
+.pill .d{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.sum{background:var(--ai-soft);border:1px solid var(--ai-line);border-radius:var(--r);padding:14px 16px;font-size:15px;line-height:1.5}
+.sum .ah{display:flex;align-items:center;gap:6px;color:var(--ai);font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+.sum .ah svg{width:15px;height:15px}
+.vbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px}
+.vbar span{font-size:12px;font-weight:600;color:var(--mute);letter-spacing:.05em;text-transform:uppercase}
+.seg{display:flex;gap:2px;background:var(--sunk);border-radius:10px;padding:2px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.seg::-webkit-scrollbar{display:none}
+.seg button{flex:none;height:28px;padding:0 11px;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--soft);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0/.1)}
+.msgs{display:flex;flex-direction:column;gap:10px}
+/* Chat */
+.bub{max-width:min(540px,88%);padding:10px 14px;border-radius:18px;white-space:pre-wrap;font-size:14.5px;overflow-wrap:anywhere}
+.bub.in{background:var(--surface);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:6px}
+.bub.out{background:var(--bubble-out);color:var(--on-out);align-self:flex-end;border-bottom-right-radius:6px}
+.bub small{display:block;font:11px var(--mono);opacity:.6;margin-top:5px}
+.typing{color:var(--mute)}
+.typing i{animation:blink 1.2s infinite;font-style:normal}.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+/* E-Mail */
+.mail{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.mail.first{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary) inset}
+.mhead{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;padding:12px 14px}
+.mhead .av{width:34px;height:34px;font-size:12px}
+.mmeta{flex:1;min-width:0}
+.mmeta .n{display:flex;gap:8px;align-items:baseline}
+.mmeta .n b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mmeta .n time{margin-left:auto;font:12px var(--mono);color:var(--mute);flex:none}
+.mmeta .to{font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mmeta .pv{font-size:13.5px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.tagfirst{display:inline-block;font-size:11px;font-weight:600;color:var(--primary);background:var(--primary-soft);border-radius:6px;padding:1px 7px;margin-top:4px}
+.mbody{padding:0 14px 14px 58px;white-space:pre-wrap;font-size:14.5px;line-height:1.55;overflow-wrap:anywhere}
+.msig{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--mute);white-space:pre-wrap}
+.qbtn{margin-top:10px;height:22px;padding:0 8px;border-radius:6px;background:var(--sunk);color:var(--mute);font-size:12px;letter-spacing:.1em}
+.quote{margin-top:8px;padding:6px 0 6px 12px;border-left:3px solid var(--line);color:var(--mute);font-size:13px;white-space:pre-wrap}
+.atts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.att{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:8px;background:var(--sunk);font-size:12.5px;color:var(--soft);max-width:100%}
+.att span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att .ic{flex:none;font:600 9.5px var(--mono);background:var(--red);color:#fff;border-radius:3px;padding:1px 4px}
+.att .ic.img{background:var(--green)}
+.bub .att{background:rgb(255 255 255/.16);color:inherit}
+
+/* Antwort */
+.composer{background:var(--surface);border-top:1px solid var(--line);padding:10px var(--gr) 12px var(--g)}
+.cinner{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.ctop{display:flex;align-items:center;gap:8px;min-width:0}
+.ailbl{font-size:12px;color:var(--ai);font-weight:600;flex:none;display:flex;align-items:center;gap:4px}
+.ailbl svg{width:14px;height:14px}
+.ctop .seg{background:var(--ai-soft)}
+.ctop .seg button{color:var(--ai)}
+.ctop .seg button[aria-pressed="true"]{color:var(--ink)}
+.src-note{font-size:11.5px;color:var(--mute);margin-left:auto;flex:none}
+textarea{width:100%;min-height:110px;max-height:32vh;resize:vertical;font-size:14.5px;line-height:1.5;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--ink)}
+.catt{display:flex;flex-wrap:wrap;gap:6px}
+.catt .att button{color:var(--mute);font-size:15px;line-height:1;margin-left:2px}
+.sugg{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:8px;border:1px dashed var(--ai-line);color:var(--ai);font-size:12.5px;font-weight:500}
+.cbar{display:flex;align-items:center;gap:8px;min-width:0}
+.clip{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);display:grid;place-items:center;flex:none;color:var(--soft)}
+.clip svg{width:19px;height:19px}
+.refine{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.refine::-webkit-scrollbar{display:none}
+.refine button{flex:none;height:32px;padding:0 10px;border-radius:9px;border:1px solid var(--line);font-size:12.5px;color:var(--soft);white-space:nowrap}
+.send{flex:none;height:38px;padding:0 18px;border-radius:11px;background:var(--primary);color:var(--on-primary);font-weight:600;font-size:14px}
+.closed{display:flex;align-items:center;gap:12px;justify-content:space-between;color:var(--soft);font-size:14px;flex-wrap:wrap}
+
+/* Statistik */
+.stats{grid-column:2/4;overflow-y:auto;padding:20px var(--gr) 32px var(--g)}
+.sinner{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.stats h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0}
+.sub{color:var(--mute);font-size:13px;margin:-8px 0 4px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.kpi .v{font-size:28px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .l{font-size:12.5px;color:var(--mute);margin-top:4px}
+.kpi.k1 .v{color:var(--primary)}.kpi.k2 .v{color:var(--orange)}.kpi.k4 .v{color:var(--green)}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.card h3{font-size:13.5px;font-weight:600;margin:0 0 12px}
+.bar{display:grid;grid-template-columns:minmax(0,7.5em) minmax(0,1fr) 2em;gap:10px;align-items:center;font-size:13px;margin:8px 0}
+.bar>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--soft)}
+.track{height:8px;background:var(--sunk);border-radius:99px;overflow:hidden}
+.track i{display:block;height:100%;border-radius:99px;background:var(--primary)}
+.num{font:12px var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.split{display:flex;height:12px;border-radius:99px;overflow:hidden;gap:2px}
+.legend{display:flex;flex-direction:column;gap:6px;margin-top:12px;font-size:13px}
+.legend div{display:flex;align-items:center;gap:8px}
+.legend .num{margin-left:auto}
+.lg{width:9px;height:9px;border-radius:3px}
+.rules{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--soft)}
+.rules li{display:flex;gap:10px;justify-content:space-between}
+.rules b{font-weight:600;flex:none}
+
+/* Sheets */
+.scrim{position:fixed;inset:0;background:rgb(10 12 20/.4);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:10px var(--gr) calc(20px + env(safe-area-inset-bottom,0px)) var(--g);display:flex;flex-direction:column;gap:6px;max-height:88vh;overflow-y:auto}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 8px}
+.sheet h2{font-size:18px;margin:0 0 4px}
+.sheet h3{font-size:12px;font-weight:600;color:var(--mute);margin:12px 0 4px;text-transform:uppercase;letter-spacing:.06em}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 12px;border-radius:10px;background:var(--sunk);font-size:14px}
+.opt[aria-pressed="true"]{background:var(--primary-soft);color:var(--primary);box-shadow:inset 0 0 0 1.5px var(--primary)}
+.opt .d{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.sbtn{margin-top:14px;height:44px;border-radius:12px;background:var(--primary);color:var(--on-primary);font-weight:600}
+.sbtn.danger{background:var(--red-soft);color:var(--red)}
+.sbtn.sec{background:var(--sunk);color:var(--ink);margin-top:6px}
+.doclist{display:flex;flex-direction:column;gap:6px}
+.doc{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--sunk);text-align:left;width:100%}
+.doc[aria-pressed="true"]{background:var(--primary-soft);box-shadow:inset 0 0 0 1.5px var(--primary)}
+.doc .ic{flex:none;width:34px;height:42px;border-radius:5px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:end center;padding-bottom:5px;font:600 9px var(--mono);color:var(--red)}
+.doc b{display:block;font-size:14px;font-weight:500;overflow-wrap:anywhere}
+.doc small{display:block;font-size:12px;color:var(--mute)}
+.doc .ck{margin-left:auto;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;color:var(--on-primary);font-size:12px;flex:none}
+.doc[aria-pressed="true"] .ck,.img[aria-pressed="true"] .ck{background:var(--primary);border-color:var(--primary)}
+.notion{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--soft);background:var(--green-soft);border-radius:10px;padding:8px 10px}
+.notion i{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
+.imgs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.img{position:relative;aspect-ratio:4/3;border-radius:10px;overflow:hidden;max-width:100%}
+.img .ph{position:absolute;inset:0}
+.img span{position:absolute;left:6px;bottom:6px;right:6px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgb(0 0 0/.5);text-align:left}
+.img .ck{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;border:2px solid #fff;display:grid;place-items:center;color:#fff;font-size:12px;background:rgb(0 0 0/.15)}
+.img[aria-pressed="true"]{box-shadow:0 0 0 3px var(--primary)}
+.hint{font-size:12px;color:var(--mute);margin:4px 0 0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:12px;font-size:14px;z-index:40;max-width:calc(100% - 32px);text-align:center}
+
+body:not([data-view="inbox"]) .list,body:not([data-view="inbox"]) .detail{display:none}
+body:not([data-view="stats"]) .stats{display:none}
+body:not([data-view="cal"]) .cal{display:none}
+@media (min-width:761px){.scrim{align-items:center}.sheet{border-radius:20px}.grab{display:none}}
+@media (max-width:1050px) and (min-width:761px){.app{grid-template-columns:76px 320px minmax(0,1fr)}}
+@media (max-width:760px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+  .rail{grid-row:2;flex-direction:row;justify-content:space-around;border-right:0;border-top:1px solid var(--line);padding:6px var(--gr) calc(6px + env(safe-area-inset-bottom,0px)) var(--g)}
+  .logo{display:none}
+  .nav{flex:1;width:auto}
+  .pane{grid-row:1;grid-column:1}
+  .stats{grid-column:1}
+  .list{border-right:0}
+  body.open .list{display:none}
+  body:not(.open) .detail{display:none}
+  body.open .rail{display:none}
+  body.open .app{grid-template-rows:minmax(0,1fr)}
+  .back{display:grid}
+  .dh .av{display:none}
+  .mbody{padding-left:14px}
+  .composer{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  .src-note{display:none}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cards{grid-template-columns:minmax(0,1fr)}
+  .imgs{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* Kalender */
+:root{--sP:#2b4fe0;--sF:#0e9bb5}
+.sdot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}
+.sdot.sP{background:var(--sP)}.sdot.sF{background:var(--sF)}
+.cal{grid-column:2/4;overflow-y:auto;padding:20px var(--gr) 32px var(--g)}
+.cinner2{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px 20px;align-items:start}
+.calh,.calbar{grid-column:1/-1}
+.calh h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0}
+.sync{display:flex;align-items:center;gap:7px;color:var(--mute);font-size:12.5px;margin:4px 0 0}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.calbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mnav{display:flex;align-items:center;gap:4px}
+.mnav b{font-size:17px;font-weight:600;min-width:9.5em;text-align:center;text-transform:capitalize}
+.icon.flip svg{transform:scaleX(-1)}
+.calwrap{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px;min-width:0}
+.calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.wd{font-size:11.5px;font-weight:600;color:var(--mute);text-align:center;padding:4px 0 6px;letter-spacing:.04em}
+.cd{min-height:92px;border-radius:12px;padding:7px 6px 6px;display:flex;flex-direction:column;gap:5px;text-align:left;background:var(--bg);min-width:0;transition:background .15s}
+.cd:hover{background:var(--sunk)}
+.cd.pad{background:none}
+.cd.we{background:color-mix(in srgb,var(--bg) 60%,var(--sunk))}
+.cd.past{opacity:.45}
+.cd .dn{font-size:13px;font-weight:600;width:24px;height:24px;display:grid;place-items:center;border-radius:50%}
+.cd.today .dn{background:var(--primary);color:var(--on-primary)}
+.cd.sel{background:var(--primary-soft);box-shadow:inset 0 0 0 1.5px var(--primary)}
+.bars{display:flex;flex-direction:column;gap:3px;margin-top:auto;min-width:0}
+.cb{display:block;height:18px;border-radius:5px;font-size:10.5px;line-height:18px;padding:0 5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0}
+.cb em{font-style:normal;font-weight:500}
+.cb.free{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.cb.gebucht.sP{background:var(--sP);color:#fff}.cb.gebucht.sF{background:var(--sF);color:#fff}
+.cb.reserviert.sP{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--sP) 22%,var(--surface)) 0 5px,color-mix(in srgb,var(--sP) 10%,var(--surface)) 5px 10px);color:var(--sP);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sP) 45%,transparent)}
+.cb.reserviert.sF{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--sF) 22%,var(--surface)) 0 5px,color-mix(in srgb,var(--sF) 10%,var(--surface)) 5px 10px);color:var(--sF);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sF) 45%,transparent)}
+.cb.block{background:repeating-linear-gradient(45deg,var(--sunk) 0 4px,var(--line) 4px 8px);color:var(--mute)}
+.legend2{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--soft);margin-top:12px;padding:0 4px}
+.legend2 span{display:inline-flex;align-items:center;gap:6px}
+.lgb{display:inline-block;width:18px;height:10px;border-radius:3px}
+.lgb.solid{background:var(--soft)}
+.lgb.stripe{background:repeating-linear-gradient(135deg,var(--line) 0 3px,var(--surface) 3px 6px);box-shadow:inset 0 0 0 1px var(--mute)}
+.lgb.blk{background:repeating-linear-gradient(45deg,var(--sunk) 0 3px,var(--line) 3px 6px)}
+.calside{display:flex;flex-direction:column;gap:14px;min-width:0}
+.dayd,.agenda{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px}
+.dayd h3,.agenda h3{font-size:15px;font-weight:650;margin:0 0 10px}
+.dd-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.dd-t{flex:1;min-width:0}
+.dd-t b{display:block;font-weight:600;font-size:14px}
+.dd-t small{display:block;font-size:12.5px;color:var(--mute)}
+.dd-t small.ok{color:var(--green);font-weight:600}
+.mini{height:30px;padding:0 11px;border-radius:9px;background:var(--sunk);font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;flex:none}
+.mini.pri{background:var(--primary);color:var(--on-primary)}
+.ag{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 0;border-top:1px solid var(--line)}
+.agd{width:36px;text-align:center;flex:none}
+.agd b{display:block;font-size:17px;line-height:1.1}
+.agd small{font-size:11px;color:var(--mute)}
+.ag-t{min-width:0;flex:1}
+.ag-t b{display:block;font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-t small{display:block;font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Verfügbarkeit im Verlauf */
+.avail{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.avh{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin-bottom:6px}
+.avh svg{width:15px;height:15px}
+.link{margin-left:auto;color:var(--primary);font-size:12.5px;font-weight:600;text-transform:none;letter-spacing:0}
+.av-row{display:flex;align-items:center;gap:8px;padding:7px 0;font-size:14px}
+.av-row b{font-weight:600}
+.av-row small{font-size:11.5px;color:var(--primary);background:var(--primary-soft);border-radius:5px;padding:1px 6px}
+.av-row .sp{flex:1}
+.av-st{font-size:12px;font-weight:600;border-radius:99px;padding:2px 9px}
+.av-st.free,.av-st.mine{background:var(--green-soft);color:var(--green)}
+.av-st.gebucht{background:var(--red-soft);color:var(--red)}
+.av-st.reserviert{background:var(--orange-soft);color:var(--orange)}
+.av-st.block{background:var(--grey-soft);color:var(--mute)}
+.av-who{font-size:12.5px;color:var(--mute);margin:-4px 0 4px 17px}
+.av-act{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
+.alt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--soft)}
+.av-note{margin:8px 0 0;font-size:12.5px;color:var(--ai)}
+.from{font-size:12px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.from b{color:var(--soft);font-weight:600}
+@media (max-width:1050px){.cinner2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+  .cal{grid-column:1}
+  .calwrap{padding:8px;border-radius:14px}
+  .calgrid{gap:3px}
+  .cd{min-height:58px;padding:5px 3px 4px;border-radius:9px;gap:3px}
+  .cd .dn{font-size:12px;width:22px;height:22px}
+  .cb{height:6px;padding:0;border-radius:3px}
+  .cb em{display:none}
+  .mnav b{min-width:0;font-size:16px}
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--sP:#6f8cff;--sF:#2cc4dd}}
+:root[data-theme="dark"]{--sP:#6f8cff;--sF:#2cc4dd}
+
+/* Punkte + 6-Monats-Übersicht */
+.dt{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none}
+.dt.sP.gebucht{background:var(--sP)}.dt.sF.gebucht{background:var(--sF)}
+.dt.sP.reserviert{box-shadow:inset 0 0 0 1.6px var(--sP)}.dt.sF.reserviert{box-shadow:inset 0 0 0 1.6px var(--sF)}
+.dt.block{background:var(--mute);opacity:.45}
+.legend2 .dt{width:9px;height:9px}
+.calh{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cinner2.wide{grid-template-columns:minmax(0,1fr)}
+.mms{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.mm{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}
+.mmh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+.mmh b{font-size:15px;font-weight:650;text-transform:capitalize}
+.mmh small{font-size:11.5px;color:var(--mute)}
+.mmg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.mw{font-size:10.5px;color:var(--mute);text-align:center;padding-bottom:4px}
+.md{display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 0;border-radius:8px;font-size:12.5px}
+.md:hover{background:var(--sunk)}
+.md.past{opacity:.4}
+.md.today>span:first-child{background:var(--primary);color:var(--on-primary);border-radius:50%;width:22px;height:22px;display:grid;place-items:center;font-weight:600}
+.dts{display:flex;gap:2px;height:7px}
+@media (max-width:760px){
+  .bars{flex-direction:row;justify-content:center;gap:3px;margin-top:auto}
+  .cb{width:7px;height:7px;border-radius:50%}
+  .cb.free{display:none}
+  .cb.reserviert.sP{background:none;box-shadow:inset 0 0 0 1.6px var(--sP)}
+  .cb.reserviert.sF{background:none;box-shadow:inset 0 0 0 1.6px var(--sF)}
+  .cb.block{background:var(--mute);opacity:.45}
+  .cd{min-height:50px;align-items:center}
+  .mms{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .mm{padding:10px 8px}
+  .md{font-size:11.5px}
+  .mmh{flex-direction:column;gap:0}
+}
+
+/* Einstellungen */
+body:not([data-view="set"]) .set{display:none}
+.set{grid-column:2/4;overflow-y:auto;padding:20px var(--gr) 32px var(--g)}
+.set .sinner{max-width:680px}
+.set h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0}
+.scard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:6px 16px}
+.scard h3{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 2px}
+.srow{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.scard h3+.srow{border-top:0}
+.srow.col{flex-direction:column;align-items:stretch;gap:8px}
+.srow textarea{min-height:70px}
+.stx{flex:1;min-width:0}
+.stx b{display:block;font-weight:500;font-size:14.5px}
+.stx small{display:block;font-size:12.5px;color:var(--mute)}
+.switch{width:44px;height:26px;border-radius:99px;background:var(--line);position:relative;flex:none;transition:background .15s}
+.switch i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0/.25);transition:transform .15s}
+.switch[aria-checked="true"]{background:var(--green)}
+.switch[aria-checked="true"] i{transform:translateX(18px)}
+.cst{font-size:12px;font-weight:600;border-radius:99px;padding:3px 9px;flex:none}
+.cst.ok{background:var(--green-soft);color:var(--green)}
+.cst.todo{background:var(--orange-soft);color:var(--orange)}
+@media (max-width:760px){.set{grid-column:1}.nav{font-size:10.5px}.srow{flex-wrap:wrap}}
+
+/* Zeitfilter + Gruppen */
+.ghost.sq{width:34px;padding:0;font-size:20px;line-height:1}
+.tfil{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0 var(--gr) 10px var(--g)}
+.tfil button{display:flex;align-items:center;gap:7px;height:40px;padding:0 10px;border-radius:12px;background:var(--sunk);color:var(--soft);font-size:13px;font-weight:500;min-width:0}
+.tfil svg{width:18px;height:18px;flex:none}
+.tfil span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tfil em{margin-left:auto;font:500 11.5px var(--mono);font-style:normal;opacity:.7}
+.tfil button[aria-pressed="true"]{background:var(--primary-soft);color:var(--primary);box-shadow:inset 0 0 0 1.5px var(--primary)}
+.tfil button:first-child svg{color:var(--primary)}
+.grp{display:flex;align-items:center;gap:8px;padding:14px var(--gr) 6px var(--g);font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1}
+.grp span{font:500 11px var(--mono);letter-spacing:0;background:var(--sunk);border-radius:99px;padding:1px 7px}
+/* Kontakte */
+body:not([data-view="contacts"]) .contacts{display:none}
+.contacts{grid-column:2/4}
+.cwrap{display:grid;grid-template-columns:380px minmax(0,1fr);height:100%;min-height:0}
+.clist{display:flex;flex-direction:column;min-height:0;background:var(--surface);border-right:1px solid var(--line)}
+.cdet{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--bg)}
+.ctag{font-size:10.5px;font-weight:600;color:var(--violet);background:color-mix(in srgb,var(--violet) 12%,var(--surface));border-radius:5px;padding:1px 6px;flex:none}
+.ccard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:2px 14px}
+.kv{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:14px;min-width:0}
+.kv:first-child{border-top:0}
+.kv span{color:var(--mute);width:5.5em;flex:none;font-size:13px}
+.kv b{font-weight:500;flex:1;min-width:0;overflow-wrap:anywhere}
+.sechd{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.sechd h3,.sh{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 0}
+.upl{display:inline-flex;align-items:center;cursor:pointer}
+.dseg{align-self:flex-start;max-width:100%}
+.drow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);width:100%;text-align:left;min-width:0}
+.drow:first-child{border-top:0}
+.dic{width:30px;height:38px;border-radius:5px;flex:none;display:grid;place-items:end center;padding-bottom:4px;font:600 8.5px var(--mono);color:#fff;background:var(--c)}
+.dst{font-size:11.5px;font-weight:600;border-radius:99px;padding:2px 8px;flex:none}
+.dst.ok{background:var(--green-soft);color:var(--green)}.dst.warn{background:var(--orange-soft);color:var(--orange)}.dst.neutral{background:var(--grey-soft);color:var(--mute)}
+.none{color:var(--mute);font-size:13.5px;margin:12px 0}
+.crow{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.chev{font-size:22px;color:var(--mute);line-height:1}
+.fl{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--soft);margin-bottom:8px}
+.fl input{height:42px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:0 12px;font-size:15px;color:var(--ink)}
+.fl small{color:var(--mute);font-size:12px}
+.doc .stx b{font-size:14px}
+.prog{height:10px;border-radius:99px;background:var(--sunk);overflow:hidden;margin-top:10px}
+.prog i{display:block;height:100%;background:var(--primary);border-radius:99px;transition:width .5s}
+.plabel{font:13px var(--mono);color:var(--soft);margin:10px 0 0}
+.isum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:6px}
+.isum div{background:var(--sunk);border-radius:12px;padding:10px;text-align:center}
+.isum b{display:block;font-size:20px;font-weight:650;color:var(--primary)}
+.isum small{font-size:11.5px;color:var(--mute)}
+@media (max-width:760px){
+  .contacts{grid-column:1}
+  .cwrap{grid-template-columns:minmax(0,1fr)}
+  body.copen .clist{display:none}
+  body:not(.copen) .cdet{display:none}
+  body.copen .rail{display:none}
+  body.copen .app{grid-template-rows:minmax(0,1fr)}
+  .isum{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tfil button{justify-content:center;flex-direction:column;height:52px;gap:2px;font-size:12px}
+  .tfil em{margin:0;position:absolute}
+  .tfil button{position:relative}
+  .tfil em{top:5px;right:8px}
+}
+
+/* Auswahl, Pagination, Ausgrauen */
+.row.closed{opacity:.5}
+.row.closed:hover{opacity:.8}
+.row.selm{grid-template-columns:24px 40px minmax(0,1fr)}
+.row.sel{background:var(--primary-soft)}
+.cbx{width:22px;height:22px;border-radius:7px;border:1.8px solid var(--line);display:grid;place-items:center;font-size:13px;font-weight:700;color:var(--on-primary);align-self:center;flex:none}
+.cbx.on{background:var(--primary);border-color:var(--primary)}
+.selbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px var(--gr) 10px var(--g);border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:2}
+.cbx-btn{display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:500}
+.st-spam{background:var(--red-soft);color:var(--red)}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:12px var(--gr) 16px var(--g)}
+.pinfo{font:12.5px var(--mono);color:var(--mute)}
+.psize button{padding:0 9px}
+.pnav{display:flex;align-items:center;gap:2px}
+.pnum{font:12.5px var(--mono);color:var(--soft);min-width:3em;text-align:center}
+.icon:disabled{opacity:.3;cursor:default}
+.bulk{display:flex;align-items:center;gap:10px;padding:10px var(--gr) 10px var(--g);border-top:1px solid var(--line);background:var(--surface);box-shadow:0 -4px 12px rgb(0 0 0/.06);flex-wrap:wrap}
+.bn{font-size:13.5px;font-weight:600;flex:none}
+.bacts{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.bacts button{height:34px;padding:0 12px;border-radius:10px;background:var(--sunk);font-size:13px;font-weight:600}
+.bacts button[data-bulk="spam"]{background:var(--red-soft);color:var(--red)}
+.bacts button[data-bulk="abgeschlossen"]{background:var(--green-soft);color:var(--green)}
+.bacts button:disabled{opacity:.4}
+#selmode[aria-pressed="true"]{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+@media (prefers-reduced-motion:reduce){.typing i{animation:none}}
+</style>
+
+<div class="app">
+  <nav class="rail" aria-label="Bereiche">
+    <div class="logo" aria-hidden="true">L</div>
+    <button class="nav" data-view="inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>Anfragen<span class="cnt" id="navcnt" hidden></span></button>
+    <button class="nav" data-view="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Kalender</button>
+    <button class="nav" data-view="contacts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20c.8-3.7 3.9-6 7.5-6s6.7 2.3 7.5 6"/></svg>Kontakte</button>
+    <button class="nav" data-view="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>Statistik</button>
+    <button class="nav" data-view="set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Einstellungen</button>
+  </nav>
+  <aside class="pane list" id="list"></aside>
+  <section class="pane detail" id="detail"></section>
+  <section class="pane stats" id="stats"></section>
+  <section class="pane cal" id="cal"></section>
+  <section class="pane set" id="set"></section>
+  <section class="pane contacts" id="contacts"></section>
+</div>
+<div id="sheet"></div>
+<div class="toast" id="toast" hidden></div>
+<script>
+const COLORS={rot:'var(--red)',orange:'var(--orange)',gruen:'var(--green)',blau:'var(--blue)',lila:'var(--violet)'};
+const COLOR_NAMES={rot:'Dringend',orange:'Angebot offen',gruen:'Zugesagt',blau:'Info',lila:'Stammkunde'};
+const STUDIO={F:'Factory Loft',P:'Penthouse Loft',X:'Studio offen'};
+const MAILBOX='mail@loftstudiocologne.com';
+const now=new Date('2026-11-05T07:00:00');
+const h=n=>new Date(now-n*3600e3);
+
+let threads=[
+ {id:1,req:{s:'P',d:'2026-11-14'},name:'Lena Hoffmann',email:'lena@hoffmann-produktion.de',subject:'Anfrage Penthouse Loft – Fashion-Shoot am 14.11.',studio:'P',cat:'Verfügbarkeit',prio:'hoch',color:'rot',status:'offen',star:true,unread:true,at:h(2),
+  sig:'Lena Hoffmann\nProducerin\nHoffmann Produktion GmbH\nVenloer Str. 12 · 50672 Köln\nT +49 221 555 01 23\nwww.hoffmann-produktion.de',
+  summary:'Fashion-Lookbook am Sa 14.11., 9 bis 19 Uhr, 8 Personen. Offene Fragen: Verfügbarkeit, Tageslicht, Make-up-Raum, Parken für einen Sprinter.',
+  msgs:[{d:'in',t:h(2),x:'Hallo liebes Loft-Team,\n\nich bin über Instagram auf euch aufmerksam geworden und finde vor allem das Penthouse Loft wahnsinnig schön.\n\nWir planen am Samstag, 14.11., einen Fashion-Shoot für das Frühjahrs-Lookbook einer Kölner Modemarke. Fotografiert wird ganztägig, ungefähr von 9 bis 19 Uhr inklusive Auf- und Abbau.\n\nZum Team: Fotografin, Assistenz, zwei Models, Hair & Make-up, Styling, die Kundin und ich als Producerin, also etwa 8 Personen.\n\nEin paar Fragen vorab:\n1. Ist der 14.11. noch frei?\n2. Wie viel Tageslicht habt ihr im Penthouse, bzw. müssen wir Licht mitbringen?\n3. Gibt es einen separaten Raum für Hair & Make-up?\n4. Wie läuft es mit Parken für einen Sprinter?\n\nIch freue mich auf eure Rückmeldung!\n\nViele Grüße\nLena'}]},
+ {id:2,name:'Markus Brandt',email:'m.brandt@brandt-coaching.com',subject:'Raumanfrage für zweitägigen Führungskräfte-Workshop (Januar 2027)',studio:'F',cat:'Workshop / Seminar',prio:'normal',color:'orange',status:'beantwortet',star:false,unread:false,at:h(29.3),resp:42,
+  sig:'Markus Brandt\nGeschäftsführer\nBrandt Leadership Coaching\nHohenzollernring 48 · 50672 Köln\nT +49 221 555 77 10',
+  summary:'Zweitägiger Workshop Ende Januar, 16 Teilnehmende, braucht Bildschirm und Flipchart. Antwort ist raus, wartet auf konkrete Tage.',
+  msgs:[{d:'in',t:h(30),x:'Sehr geehrte Damen und Herren,\n\nfür einen zweitägigen Führungskräfte-Workshop suche ich Ende Januar 2027 einen ruhigen, inspirierenden Raum in der Kölner Innenstadt.\n\nDie Eckdaten:\n- 16 Teilnehmende plus zwei Trainer\n- jeweils ca. 9 bis 17 Uhr\n- Arbeit an Gruppentischen, zwischendurch Kleingruppen\n- Bildschirm oder Beamer sowie ein Flipchart wären wichtig\n- Mittagessen würden wir selbst organisieren\n\nIst so etwas bei Ihnen möglich? Über ein unverbindliches Angebot würde ich mich freuen.\n\nMit freundlichen Grüßen\nMarkus Brandt'},
+        {d:'out',t:h(29.3),x:'Hallo Herr Brandt,\n\nvielen Dank für Ihre Anfrage. Das Factory Loft passt sehr gut: 4 Tische à 4 Personen und 16 Stühle, also genau Ihre Gruppengröße. Eigenes Catering ist problemlos möglich.\n\nEnde Januar sind noch mehrere Termine frei. Sobald Sie mir die genauen Tage nennen, schicke ich Ihnen das Angebot.\n\nViele Grüße\nKlaus\nLoft Studio Cologne'}]},
+ {id:3,name:'Sophie Kaya',email:'hello@sophiekaya.studio',subject:'Besichtigung möglich?',studio:'X',cat:'Besichtigung',prio:'normal',color:null,status:'offen',star:false,unread:true,at:h(6),
+  sig:'Sophie Kaya Photography\nInstagram @sophiekaya.studio\n+49 176 555 98 41',
+  summary:'Fotografin plant Kampagne im Dezember, unentschlossen zwischen beiden Lofts. Möchte vorher besichtigen, kein Datum genannt.',
+  msgs:[{d:'in',t:h(6),x:'Hi ihr Lieben!\n\nich bin Fotografin aus Ehrenfeld und plane im Dezember eine Kampagne für ein Kosmetik-Label (Beauty + ein bisschen Lifestyle). Eure Räume habe ich schon öfter in Produktionen von Kolleg:innen gesehen.\n\nIch bin noch unentschlossen, ob das Factory oder das Penthouse besser passt. Könnte ich mir beide Lofts vorher mal anschauen? Nachmittags unter der Woche wäre ideal.\n\nAußerdem: Darf man bei euch auch Möbel umstellen?\n\nLG Sophie'}]},
+ {id:4,req:{s:'F',d:'2026-11-21'},name:'Agentur Nordlicht',email:'produktion@nordlicht-agentur.de',subject:'Re: Buchung Factory 21.11.',studio:'F',cat:'Buchung',prio:'normal',color:'lila',status:'gebucht',star:false,unread:false,at:h(50),resp:18,
+  sig:'Nordlicht Agentur für Bewegtbild\nProduktion · Im Mediapark 6 · 50670 Köln',
+  summary:'Stammkunde. Factory Loft am 21.11. bestätigt, gleicher Ablauf wie zuletzt. Rechnung nach Miete.',
+  msgs:[{d:'in',t:h(52),x:'Hallo Klaus,\n\nkönnen wir den 21.11. für die Factory fix machen? Gleicher Ablauf wie beim letzten Mal, Get-in um 8, Ende gegen 18 Uhr.\n\nGruß aus dem Nordlicht-Team\nJana'},
+        {d:'out',t:h(51.7),x:'Hi Jana,\n\nder 21.11. ist für euch eingetragen. Wie immer keine Vorauszahlung, die Rechnung kommt nach der Miete.\n\nBis bald\nKlaus\nLoft Studio Cologne'},
+        {d:'in',t:h(50),x:'Perfekt, danke dir!\nJana'}]},
+ {id:5,name:'Julian Weber',email:'julian.weber@gmail.com',subject:'Preise für Musikvideo-Dreh',studio:'X',cat:'Preis',prio:'normal',color:'blau',status:'offen',star:false,unread:false,at:h(27),
+  sig:'Julian\n– gesendet vom iPhone',
+  summary:'Musikvideo, Team von 5 Personen, Datum flexibel. Fragt nach Preisen für Halbtag und Tag.',
+  msgs:[{d:'in',t:h(27),x:'Hey,\n\nwir sind eine Band aus Köln und wollen für unsere neue Single ein Musikvideo drehen. Kleines Team, ca. 5 Leute, ein paar Lampen und eine Kamera.\n\nWas kostet bei euch ein halber und was ein ganzer Tag? Datum ist noch flexibel, am liebsten an einem Wochenende im November.\n\nCheers, Julian'}]},
+ {id:6,name:'SEO Growth Partners',email:'outreach@seo-growth-partners.io',subject:'Mehr Buchungen durch Top-Rankings!!',studio:'X',cat:'Spam',prio:'niedrig',color:null,status:'spam',star:false,unread:false,at:h(9),spam:96,
+  sig:'SEO Growth Partners Ltd.\nUnsubscribe',
+  summary:'Werbung für SEO-Dienstleistung. Automatisch als Spam erkannt.',
+  msgs:[{d:'in',t:h(9),x:'Sehr geehrte Damen und Herren,\n\nwir garantieren Ihnen Platz 1 bei Google in nur 30 Tagen! Ihre Konkurrenz nutzt unsere Methode bereits. Jetzt kostenloses Erstgespräch sichern...'}]},
+ {id:7,req:{s:'P',d:'2026-11-29'},name:'Anna Petrova',email:'anna.petrova@yogaflow.de',subject:'Yoga-Retreat im Penthouse Loft?',studio:'P',cat:'Event',prio:'normal',color:null,status:'offen',star:false,unread:true,at:h(14),
+  sig:'Anna Petrova\nYogaflow Köln\nwww.yogaflow.de',
+  summary:'Tages-Retreat am So 29.11. für ca. 18 Teilnehmerinnen. Fragt nach Küche (Tee, Snacks) und Dusche.',
+  msgs:[{d:'in',t:h(14),x:'Liebes Loft-Team,\n\nich leite ein kleines Yoga-Studio in der Südstadt und plane für Sonntag, 29.11., ein Tages-Retreat mit ca. 18 Teilnehmerinnen: Yoga, Meditation und ein gemeinsames Mittagessen.\n\nDas Penthouse sieht auf euren Fotos perfekt aus, so viel Licht und Ruhe!\n\nZwei Fragen:\n- Gibt es eine Küche, die wir für Tee und Snacks nutzen können?\n- Gibt es eine Dusche?\n\nHerzliche Grüße\nAnna'}]},
+ {id:8,req:{s:'P',d:'2026-11-08'},name:'Tim Schröder',email:'tim@schroeder-film.de',subject:'Re: Penthouse 8.11. – Rückfrage Aufbau',studio:'P',cat:'Buchung',prio:'hoch',color:'rot',status:'offen',star:true,unread:true,at:h(1),
+  sig:'Tim Schröder\nSchröder Film\nT +49 160 555 44 12',
+  summary:'Gebucht für So 8.11. Fragt, ob der Aufbau schon ab 7 Uhr möglich ist. Antwort eilt.',
+  msgs:[{d:'out',t:h(70),x:'Hallo Tim,\n\nder 8.11. im Penthouse ist für dich reserviert. Rechnung kommt nach der Miete.\n\nGruß\nKlaus\nLoft Studio Cologne'},
+        {d:'in',t:h(1),x:'Moin Klaus,\n\nkurze Frage: Können wir am Sonntag schon um 7 Uhr rein für den Aufbau? Der Dreh startet um 9 und wir haben ziemlich viel Licht dabei.\n\nDanke dir!\nTim'}]},
+ {id:9,req:{s:'F',d:'2026-12-09'},name:'Clara Nguyen',email:'clara@nguyen-design.com',subject:'Anfrage Factory Loft 9. bis 11.12.',studio:'F',cat:'Verfügbarkeit',prio:'normal',color:'orange',status:'beantwortet',star:false,unread:false,at:h(74.8),resp:190,
+  sig:'Clara Nguyen\nArt Direction · Nguyen Design\nT +49 221 555 30 30',
+  summary:'Produktshoot für Möbel-Accessoires, 3 Tage im Dezember. Angebot gesendet, seit 3 Tagen keine Antwort.',
+  msgs:[{d:'in',t:h(78),x:'Hallo,\n\nwir produzieren für einen Interior-Kunden die neue Accessoire-Kollektion und suchen dafür 3 Tage im Dezember (9. bis 11.12.).\n\nWir brauchen viel Fläche für mehrere Sets parallel. Ist das Factory Loft an den Tagen frei?\n\nBeste Grüße\nClara'},
+        {d:'out',t:h(74.8),x:'Hallo Clara,\n\nder 9. bis 11.12. ist im Factory Loft noch frei. Im Anhang findest du das Angebot. Gib mir gern bis Ende der Woche Bescheid, dann halte ich die Tage so lange für dich.\n\nViele Grüße\nKlaus\nLoft Studio Cologne',att:['Angebot_2026-118.pdf','Factory-Loft_Fact-Sheet.pdf']}]},
+ {id:10,name:'Daniel Krüger',email:'d.krueger@kruegermedia.de',subject:'Videopodcast am 18.11.',studio:'F',cat:'Verfügbarkeit',prio:'normal',color:null,status:'abgeschlossen',star:false,unread:false,at:h(118),resp:65,
+  sig:'Daniel Krüger\nKrüger Media',
+  summary:'Videopodcast, 3 Personen, Mi 18.11. Factory vorgeschlagen, hat sich anders entschieden.',
+  msgs:[{d:'in',t:h(121),x:'Hi,\n\nwir suchen für einen Videopodcast eine schöne Location, 3 Personen, Mittwoch 18.11. Geht das bei euch?\n\nDaniel'},
+        {d:'out',t:h(120),x:'Hallo Daniel,\n\nder 18.11. ist frei. Für drei Personen mit Kameras empfehle ich das Factory Loft.\n\nGruß\nKlaus\nLoft Studio Cologne'},
+        {d:'in',t:h(118),x:'Danke für die schnelle Antwort! Wir drehen jetzt doch bei uns im Büro. Vielleicht beim nächsten Mal.\nDaniel'}]},
+ {id:11,name:'Kevin Lorenz',email:'kevin@lorenz-portraits.de',subject:'Blitzset für Porträt-Shoot am 18.10.?',studio:'F',cat:'Ausstattung',prio:'normal',color:null,status:'abgeschlossen',star:false,unread:false,at:h(480),resp:35,
+  sig:'Kevin Lorenz\nPorträtfotografie\nwww.lorenz-portraits.de',
+  summary:'Porträt-Shoot im Factory Loft am 18.10. Wollte ein Blitzset dazumieten. Kein Verleih, bringt sein eigenes Godox-Set mit.',
+  msgs:[{d:'in',t:h(482),x:'Hallo Klaus,\n\nich habe für den 18.10. das Factory Loft gebucht (Business-Porträts für ein Team von 12 Leuten).\n\nHabt ihr ein Blitzset, z. B. Profoto, das ich dazumieten kann? Sonst bringe ich mein Godox-Set mit, dann bräuchte ich aber zwei Stative von euch.\n\nGruß\nKevin'},
+        {d:'out',t:h(481.4),x:'Hallo Kevin,\n\nEquipment vermieten wir nicht, C-Stands bekommst du aber kostenfrei. Dein Godox-Set passt gut, Strom ist an mehreren Stellen vorhanden.\n\nViele Grüße\nKlaus\nLoft Studio Cologne'},
+        {d:'in',t:h(480),x:'Alles klar, dann bringe ich meins mit. Danke!\nKevin'}]},
+ {id:12,req:{s:'P',d:'2026-12-08'},name:'Jonas Becker',email:'jonas@studio-kranich.de',subject:'Penthouse am 8.12. für Kampagnen-Shoot?',studio:'P',cat:'Verfügbarkeit',prio:'normal',color:null,status:'offen',star:false,unread:true,at:h(4),
+  sig:'Jonas Becker\nProduktion · Studio Kranich\nAachener Str. 210 · 50931 Köln\nT +49 221 555 61 61',
+  summary:'Kampagnen-Shoot für einen Getränkehersteller am Di 8.12., ganztägig, 10 Personen. Penthouse gewünscht, Datum leicht flexibel.',
+  msgs:[{d:'in',t:h(4),x:'Hallo Loft-Team,\n\nwir produzieren im Dezember eine Kampagne für einen regionalen Getränkehersteller und hätten gern das Penthouse Loft am Dienstag, 8.12., ganztägig von ca. 8 bis 19 Uhr.\n\nWir sind etwa 10 Personen (Foto, Bewegtbild, Kunde, Agentur). Falls der 8.12. nicht klappt, sind wir ein, zwei Tage flexibel.\n\nKönnt ihr mir kurz Bescheid geben?\n\nBeste Grüße\nJonas'}]},
+];
+// ältere, abgeschlossene Anfragen (wie nach dem Freshdesk-Import) + mögliche Spam-Mails
+(function(){
+ const N=['Mara Klein','Studio Pfeffer','Lukas Wendt','Agentur Blaupause','Nina Sommer','Felix Graf','Hanna Yilmaz','Brandhaus Köln','Ole Petersen','Sara Mendes','Atelier Nord','David Roth','Lea Martens','Paul Schuster','Kreativbüro Kranz','Ines Vogel','Tom Becker','Julia Brandl','Medienhaus West','Emil Hartmann','Clara Wolff','Studio Feinkorn','Marc Albers','Lisa Engel','Agentur Wolkenwerk','Noah Fischer','Mia Kowalski','Yogaflow Köln','Ben Kurz','Lumen Records','Tonwerk Köln','Jana Seidel','Robin Hoff','Fotografie Lang','Eva Lindner','Max Ritter','Svenja Pohl','Kai Neumann','Laura Busch','Timo Krämer'];
+ const C=[['Verfügbarkeit','Anfrage für einen Shoot-Tag'],['Preis','Frage zu Preisen'],['Workshop / Seminar','Raum für Workshop gesucht'],['Event','Location für Event'],['Besichtigung','Besichtigung möglich?'],['Buchung','Buchungsbestätigung'],['Ausstattung','Frage zur Ausstattung']];
+ N.forEach((n,i)=>{const c=C[i%C.length],days=9+Math.round(i*4.4),s=i%3===0?'F':'P',at=h(24*days),em=n.toLowerCase().replace(/[^a-z]+/g,'.').replace(/^\.|\.$/g,'')+'@example.de';
+  threads.push({id:300+i,name:n,email:em,subject:`${c[1]} (${s==='P'?'Penthouse':'Factory'})`,studio:s,cat:c[0],prio:'normal',color:i%9===0?'lila':null,status:i%6===0?'gebucht':'abgeschlossen',star:false,unread:false,at,resp:20+(i*37)%300,sig:n,
+   summary:`${c[0]} für das ${STUDIO[s]}. Abgeschlossen.`,msgs:[{d:'in',t:new Date(+at-36e5*5),x:`Hallo,\n\n${c[1]} im ${STUDIO[s]}. Könnt ihr mir kurz Infos schicken?\n\nViele Grüße\n${n.split(' ')[0]}`},{d:'out',t:at,x:`Hallo ${n.split(' ')[0]},\n\ndanke für die Anfrage! Alle Infos findest du im Anhang.\n\nViele Grüße\nKlaus\nLoft Studio Cologne`}]});});
+ [['Influencer-Kooperation 2027','Lina | CreatorCollab','lina@creatorcollab-agency.com','Hi! Wir vermitteln Influencer für Location-Kooperationen. Gratis-Nutzung eurer Räume gegen Reichweite? Melde dich für Details!',72,3],
+  ['Ihr Brancheneintrag 2027 – bitte bestätigen','Branchenbuch Deutschland','service@branchen-eintrag24.de','Sehr geehrte Damen und Herren, bitte bestätigen Sie Ihren Eintrag. Ohne Rückmeldung wird der Eintrag kostenpflichtig verlängert.',78,8],
+  ['Premium-Listing für Fotostudios','StudioFinder Pro','sales@studiofinder-pro.com','Hallo, mit einem Premium-Listing erscheint Ihr Studio ganz oben. Nur 49 € im Monat, jetzt 3 Monate gratis testen.',61,20]].forEach(([s,n,e,x,r,hh],i)=>threads.push({id:200+i,name:n,email:e,subject:s,studio:'X',cat:'Sonstiges',prio:'normal',color:null,status:'offen',star:false,unread:true,at:h(hh),spamRisk:r,sig:n,summary:`Wirkt wie Werbung (Spam-Wahrscheinlichkeit ${r} %). Prüfen und ggf. als Spam markieren.`,msgs:[{d:'in',t:h(hh),x}]}));
+})();
+const SIG='\n\nViele Grüße\nKlaus\nLoft Studio Cologne';
+const FOLLOW={
+ 1:[{x:'Super, danke dir! 9 bis 19 Uhr passt, wir bleiben bei 8 Personen. Kannst du das Angebot an diese Adresse schicken?\nHoffmann Produktion GmbH, Venloer Str. 12, 50672 Köln\n\nLG Lena',sum:'Bestätigt: 14.11., 9 bis 19 Uhr, 8 Personen. Wartet auf Angebot an Hoffmann Produktion GmbH.',d:[
+   ['Angebot senden','Hallo Lena,\nperfekt, danke! Im Anhang das Angebot für das Penthouse Loft am 14.11., 9 bis 19 Uhr [Angebot].\nWenn es passt, gib mir kurz dein Okay, dann ist der Tag fest für euch.'+SIG],
+   ['Kurz','Hallo Lena,\nAngebot ist im Anhang [Angebot]. Kurzes Okay genügt, dann trage ich euch ein.'+SIG],
+   ['Mit Ablauf-Infos','Hallo Lena,\ndanke! Das Angebot ist im Anhang [Angebot].\nZum Ablauf: Schlüsselübergabe um 9 Uhr vor Ort, Hair & Make-up hat einen eigenen Raum, die Küche dürft ihr nutzen. Die Rechnung kommt nach der Miete.\nGib mir kurz Bescheid, ob alles passt.'+SIG]]},
+  {x:'Angebot passt, wir machen es fix! Danke für die schnelle Abwicklung.\nLena',sum:'Gebucht: Penthouse Loft, 14.11., 9 bis 19 Uhr.',final:{status:'gebucht',color:'gruen'}}],
+ 3:[{x:'Dienstag 16 Uhr passt super! Ich bringe meine Art Direktorin mit, wir sind also zu zweit.\n\nLG Sophie',sum:'Besichtigung Di 11.11., 16 Uhr, kommt zu zweit mit Art Direktorin.',d:[
+   ['Bestätigen','Hallo Sophie,\nprima, dann sehen wir uns am Dienstag, 11.11., um 16 Uhr. Gern zu zweit.'+SIG],
+   ['Mit Anfahrt','Hallo Sophie,\nsuper, Dienstag 16 Uhr ist eingetragen. Klingelt einfach unten bei "Loft Studio". Parken geht am besten in den Seitenstraßen.'+SIG],
+   ['Kurz','Hallo Sophie,\nklasse, bis Dienstag um 16 Uhr!'+SIG]]},
+  {x:'Danke, bis Dienstag! 😊',sum:'Besichtigung bestätigt für Di 11.11., 16 Uhr.',final:{status:'beantwortet',color:'blau'}}],
+ 5:[{x:'Danke! Wir würden gern am Sonntag 22.11. drehen, ganzer Tag. Dürfen wir eine Nebelmaschine benutzen?\n\nJulian',sum:'Musikvideo, ganzer Tag am 22.11., 5 Personen. Fragt nach Nebelmaschine.',d:[
+   ['Zusage + Hinweis','Hallo Julian,\nder 22.11. ist frei. Eine Nebelmaschine ist okay, wenn ihr wasserbasiertes Fluid nutzt und zwischendurch lüftet. Bitte nicht direkt unter den Rauchmeldern.\nSoll ich dir das Angebot für den ganzen Tag schicken?'+SIG],
+   ['Rückfrage Nebel','Hallo Julian,\nder 22.11. ist frei. Was für eine Nebelmaschine ist das genau? Dann sage ich dir, ob das bei uns geht.'+SIG],
+   ['Kurz','Hallo Julian,\n22.11. ist frei, Nebel mit wasserbasiertem Fluid geht. Angebot schicken?'+SIG]]},
+  {x:'Perfekt, schick gern das Angebot. Dann buchen wir!',sum:'Musikvideo 22.11. zugesagt, wartet auf Angebot.',final:{status:'offen',color:'orange'}}],
+ 7:[{x:'Wunderbar, danke! Wir bräuchten das Loft von 10 bis 17 Uhr. Dürfen wir Matten auslegen und leise Musik laufen lassen?\n\nHerzlich, Anna',sum:'Yoga-Retreat 29.11., 10 bis 17 Uhr, 18 Personen. Fragt nach Matten und Musik.',d:[
+   ['Zusage','Hallo Anna,\nbeides ist kein Problem. Matten könnt ihr auf dem ganzen Boden auslegen, und eine kleine Box für Musik ist ideal. Ich schicke dir das Angebot für 10 bis 17 Uhr.'+SIG],
+   ['Mit Hinweis','Hallo Anna,\nMatten und leise Musik sind gar kein Problem. Bitte nur ab 17 Uhr den Raum besenrein hinterlassen, dann passt alles. Das Angebot kommt gleich.'+SIG],
+   ['Kurz','Hallo Anna,\nja, beides geht. Angebot kommt heute.'+SIG]]},
+  {x:'Danke, ich freue mich aufs Angebot! 🙏',sum:'Retreat 29.11. abgestimmt, wartet auf Angebot.',final:{status:'offen',color:'orange'}}],
+ 8:[{x:'Mega, danke dir! Bis Sonntag.\nTim',sum:'Aufbau ab 7 Uhr am 8.11. geklärt.',final:{status:'gebucht',color:'gruen'}}],
+ 12:[{x:'Schade! Der Mittwoch, 9.12., würde bei uns auch gehen. Könnt ihr uns den im Penthouse reservieren? Gleiche Zeiten, 8 bis 19 Uhr.\n\nJonas',sum:'Weicht auf Mi 9.12. im Penthouse aus, 8 bis 19 Uhr, 10 Personen. Möchte reservieren.',req:{s:'P',d:'2026-12-09'},d:[
+   ['Reservieren','Hallo Jonas,\nsuper, der 9.12. im Penthouse ist für euch reserviert, 8 bis 19 Uhr. Das Angebot schicke ich dir heute noch.'+SIG],
+   ['Mit Angebot','Hallo Jonas,\nder 9.12. ist für euch reserviert. Im Anhang findest du das Angebot und das Fact Sheet. Gib mir einfach dein Okay, dann ist der Tag fest.'+SIG],
+   ['Kurz','Hallo Jonas,\nist reserviert! Angebot kommt heute.'+SIG]]},
+  {x:'Perfekt, Angebot passt. Dann machen wir den 9.12. fix!\nJonas',sum:'Gebucht: Penthouse Loft, Mi 9.12., 8 bis 19 Uhr.',final:{status:'gebucht',color:'gruen'}}],
+ 2:[{x:'Guten Tag,\nwir haben uns für den 27. und 28.01. entschieden, jeweils 9 bis 17 Uhr.\n\nBeste Grüße\nMarkus Brandt',sum:'Workshop fix: 27. und 28.01., 9 bis 17 Uhr, 16 Personen.',d:[
+   ['Reservieren','Hallo Herr Brandt,\nsehr gut, ich habe das Factory Loft für den 27. und 28.01., jeweils 9 bis 17 Uhr, für Sie reserviert. Das Angebot finden Sie im Anhang [Angebot].'+SIG],
+   ['Mit Ausstattung','Hallo Herr Brandt,\ndie Tage sind für Sie reserviert. Tische und 16 Stühle stehen bereit, Flipchart und Bildschirm können Sie gern dazubuchen. Angebot anbei [Angebot].'+SIG],
+   ['Kurz','Hallo Herr Brandt,\n27. und 28.01. sind reserviert, Angebot anbei.'+SIG]]},
+  {x:'Vielen Dank, das Angebot nehmen wir so an.',sum:'Gebucht: Factory Loft 27. und 28.01.',final:{status:'gebucht',color:'gruen'}}],
+};
+const NEW=[
+ {name:'Mira Schulz',email:'mira.schulz@web.de',subject:'Brautpaar-Shooting am Sonntag?',req:{s:'P',d:'2026-11-09'},studio:'P',cat:'Verfügbarkeit',prio:'hoch',color:'rot',
+  summary:'Brautpaar-Shooting diesen Sonntag, ca. 3 Stunden, 4 Personen. Kurzfristig, daher hohe Priorität.',
+  x:'Hallo,\nganz kurzfristig: Ist das Penthouse am Sonntag frei? Wir möchten ein Brautpaar-Shooting machen, ca. 3 Stunden am Nachmittag, wir sind zu viert.\n\nLiebe Grüße\nMira'},
+ {name:'Domain-Service24',email:'info@domain-service24.net',subject:'LETZTE MAHNUNG: Ihre Domain läuft ab',studio:'X',cat:'Spam',prio:'niedrig',spam:98,
+  summary:'Gefälschte Domain-Mahnung. Automatisch als Spam erkannt.',x:'Ihre Domain loftstudiocologne.com läuft in 24 Stunden ab! Jetzt sofort verlängern unter folgendem Link...'},
+ {name:'Felix Arnold',email:'felix@arnold-moebel.de',subject:'Produktfotos Möbelkollektion',studio:'F',cat:'Verfügbarkeit',prio:'normal',color:null,
+  summary:'Möbel-Produktshoot, 2 Tage im Januar, braucht Lastenaufzug-Info.',
+  x:'Guten Tag,\nwir möchten unsere neue Möbelkollektion fotografieren, 2 Tage im Januar. Gibt es einen Aufzug, über den wir Sofas anliefern können?\n\nMit freundlichen Grüßen\nFelix Arnold'},
+];
+const GENERIC={x:'Danke für die schnelle Antwort! Ich melde mich.',sum:'Kunde hat Antwort erhalten und meldet sich.',final:{status:'beantwortet',color:null}};
+let clock=+now, newIdx=0, nextId=100;
+const tick=(m=7)=>new Date(clock+=m*60e3);
+
+let filter='alle', currentId=null, view='inbox', variantIdx=0, drafts={};
+
+const fmtT=d=>{const diff=(now-d)/3600e3; if(diff<24) return d.toTimeString().slice(0,5); return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});};
+const fmtDur=m=>m<60?m+' min':(m/60).toFixed(m<600?1:0).replace('.',',')+' h';
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const first=t=>t.name.split(' ')[0];
+const lastIn=t=>[...t.msgs].reverse().find(m=>m.d==='in');
+const waitingH=t=>t.status==='offen'?(now-lastIn(t).t)/3600e3:0;
+
+const FILTERS=[
+ ['alle','Alle',t=>t.status!=='spam'],
+ ['offen','Offen',t=>t.status==='offen'],
+ ['wichtig','Wichtig',t=>t.star||t.prio==='hoch'],
+ ['wartet','Wartet auf Kunde',t=>t.status==='beantwortet'],
+ ['gebucht','Gebucht',t=>t.status==='gebucht'],
+ ['spam','Spam',t=>t.status==='spam'],
+];
+
+function draftsFor0(t){
+  const fu=(FOLLOW[t.id]||[])[(t.step||0)-1]; if(fu&&fu.d) return fu.d;
+  const n=first(t), du=/gmail|hello@|yoga|schroeder|weber/.test(t.email)||t.color==='lila';
+  const hi=du?`Hallo ${n},`:`Hallo ${t.name.includes('Agentur')?'zusammen':t.name},`;
+  const bye=`\n\nViele Grüße\nKlaus\nLoft Studio Cologne`;
+  const S=t.studio==='P'?'Penthouse Loft':t.studio==='F'?'Factory Loft':'eines unserer Lofts';
+  const C={
+   'Verfügbarkeit':[
+    ['Zusage kurz',`${hi}\ndanke für deine Anfrage. Der Termin ist im ${S} noch frei, ich halte ihn dir gern bis Freitag vor.\nSoll ich dir direkt ein Angebot schicken?${bye}`],
+    ['Ausführlich',`${hi}\nschön, dass ihr bei uns drehen wollt. Der Termin ist im ${S} noch frei.\nDas Loft hat rund 120 m² Arbeitsfläche mit viel Tageslicht, für Hair & Make-up gibt es einen eigenen Raum. Licht könnt ihr mitbringen oder vorher mit uns abstimmen.\nWir arbeiten ohne Vorauszahlung, die Rechnung kommt nach der Miete.\nWenn du mir kurz Uhrzeit und Teamgröße bestätigst, schicke ich das Angebot.${bye}`],
+    ['Rückfrage',`${hi}\ndanke für die Anfrage. Damit ich dir ein passendes Angebot machen kann: Wie viele Personen seid ihr, von wann bis wann braucht ihr das Studio, und braucht ihr Licht von uns?${bye}`]],
+   'Preis':[
+    ['Preis + Rückfrage',`${hi}\ndanke für deine Nachricht. Wir bieten Halbtag und Tag an, die aktuellen Preise findest du in der Preisliste im Anhang [Preisliste].\nFür ein Musikvideo mit 5 Leuten passt das Factory Loft gut. Hast du schon ein Wunschdatum? Dann prüfe ich die Verfügbarkeit.${bye}`],
+    ['Kurz',`${hi}\ndie Preise für Halbtag und Tag findest du hier: [Preisliste]. Sag mir gern dein Wunschdatum, dann schaue ich, was frei ist.${bye}`],
+    ['Besichtigung anbieten',`${hi}\ndie Preise für Halbtag und Tag stehen in der Preisliste [Preisliste]. Wenn ihr euch noch nicht sicher seid, welches Loft passt, kommt gern vorher zur Besichtigung vorbei.${bye}`]],
+   'Besichtigung':[
+    ['Termine vorschlagen',`${hi}\nsehr gern! Ich kann dir beide Lofts zeigen. Passt dir Dienstag 11.11. um 16 Uhr oder Donnerstag 13.11. um 10 Uhr?\nDie Besichtigung dauert ca. 30 Minuten.${bye}`],
+    ['Kurz',`${hi}\nklar, komm gern vorbei. Wann passt es dir nächste Woche?${bye}`],
+    ['Mit Infos vorab',`${hi}\ngern! Vorab schon mal: Beide Lofts haben zusammen 180 m², das Factory Loft eignet sich eher für Produkt und Workshops, das Penthouse mit Küche für People und Events (bis 20 Personen).\nVorschlag zur Besichtigung: Di 11.11., 16 Uhr. Passt das?${bye}`]],
+   'Event':[
+    ['Zusage + Infos',`${hi}\ndas klingt nach einem schönen Tag. Der 29.11. ist im Penthouse noch frei, 18 Personen passen gut (max. 20).\nEs gibt eine Küche mit Kapselmaschine und Milchschäumer, die ihr für Tee und Snacks nutzen könnt. Eine Dusche gibt es im Bad.\nSoll ich dir ein Angebot schicken?${bye}`],
+    ['Kurz',`${hi}\nder 29.11. ist frei und 18 Personen passen. Küche und Dusche sind vorhanden. Angebot schicken?${bye}`],
+    ['Rückfrage',`${hi}\ngern! Von wann bis wann bräuchtet ihr das Penthouse am 29.11.? Dann schicke ich dir ein Angebot.${bye}`]],
+   'Buchung':[
+    ['Zusage',`${hi}\nja, 7 Uhr passt. Ich sorge dafür, dass ihr ab 7 Uhr reinkommt.${bye}`],
+    ['Mit Bedingung',`${hi}\n7 Uhr geht grundsätzlich. Die zusätzliche Stunde rechne ich zum normalen Stundensatz ab. Passt das für euch?${bye}`],
+    ['Absage freundlich',`${hi}\n7 Uhr klappt leider nicht, frühestens 8 Uhr. Reicht euch das für den Aufbau?${bye}`]],
+   'Workshop / Seminar':[
+    ['Nachfassen',`${hi}\nkurze Rückfrage zu Ihrem Workshop im Januar: Stehen die Tage schon fest? Dann reserviere ich das Factory Loft für Sie.${bye}`],
+    ['Kurz',`${hi}\nhaben Sie schon die Termine für Januar? Ich halte gern etwas frei.${bye}`],
+    ['Mit Angebot',`${hi}\nanbei schon mal ein unverbindliches Angebot für zwei Tage im Factory Loft [Angebot]. Sagen Sie mir einfach die Tage, dann trage ich Sie ein.${bye}`]],
+  };
+  return C[t.cat]||[['Kurz',`${hi}\ndanke für deine Nachricht.${bye}`],['Ausführlich',`${hi}\nvielen Dank für die Nachricht. Ich melde mich mit allen Details.${bye}`],['Rückfrage',`${hi}\nkannst du mir noch kurz mehr Details schicken?${bye}`]];
+}
+
+function improve(kind,txt){
+  if(kind==='kurz'){const lines=txt.split('\n').filter(Boolean);const greet=lines[0],sig=txt.slice(txt.indexOf('\n\nViele Grüße'));const body=lines.slice(1).filter(l=>!/Viele Grüße|^Klaus|Loft Studio/.test(l)).slice(0,2).join('\n');return `${greet}\n${body}${sig.startsWith('\n\n')?sig:''}`;}
+  if(kind==='sie') return txt.replace(/\bdeine\b/g,'Ihre').replace(/\bdeiner\b/g,'Ihrer').replace(/\bdich\b/g,'Sie').replace(/\bdir\b/g,'Ihnen').replace(/\bdu\b/g,'Sie').replace(/\bDu\b/g,'Sie').replace(/\bSag\b/g,'Sagen Sie').replace(/\bGib\b/g,'Geben Sie').replace(/komm gern/g,'kommen Sie gern').replace(/Hallo (\w+),/,(m,n)=>`Hallo,`);
+  const add={besicht:'Wenn ihr euch die Räume vorher ansehen möchtet, ist eine kurze Besichtigung jederzeit möglich.',rechnung:'Wir arbeiten ohne Vorauszahlung, die Rechnung kommt nach der Miete.'}[kind];
+  const i=txt.indexOf('\n\nViele Grüße'); return i<0?txt+'\n'+add:txt.slice(0,i)+'\n'+add+txt.slice(i);
+}
+// ---------- Kalender (Demo, später Google Kalender) ----------
+const pad=n=>String(n).padStart(2,'0');
+const dkey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const pkey=k=>{const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d);};
+const WD=['So','Mo','Di','Mi','Do','Fr','Sa'], WDL=['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+const fmtDay=k=>{const d=pkey(k);return `${WD[d.getDay()]} ${pad(d.getDate())}.${pad(d.getMonth()+1)}.`};
+const fmtDayLong=k=>{const d=pkey(k);return `${WDL[d.getDay()]}, ${d.getDate()}.${d.getMonth()+1}.`};
+const SNAME={P:'Penthouse',F:'Factory'};
+let bookings=[
+ {s:'F',d:'2026-11-06',from:'09:00',to:'18:00',type:'gebucht',who:'Studio Feinkorn',title:'Produktshoot Kosmetik'},
+ {s:'P',d:'2026-11-07',from:'10:00',to:'16:00',type:'gebucht',who:'Fotografie Lang',title:'Familienporträts'},
+ {s:'P',d:'2026-11-08',from:'07:00',to:'19:00',type:'gebucht',who:'Tim Schröder',title:'Filmdreh',tid:8},
+ {s:'F',d:'2026-11-12',from:'',to:'',type:'block',who:'',title:'Boden wird geölt'},
+ {s:'F',d:'2026-11-14',from:'08:00',to:'17:00',type:'gebucht',who:'Möbelhaus Hansen',title:'Katalogshoot'},
+ {s:'P',d:'2026-11-15',from:'10:00',to:'18:00',type:'gebucht',who:'Tonwerk Köln',title:'Keramik-Workshop'},
+ {s:'P',d:'2026-11-19',from:'09:00',to:'14:00',type:'gebucht',who:'Kanzlei Roth',title:'Team-Porträts'},
+ {s:'F',d:'2026-11-21',from:'08:00',to:'18:00',type:'gebucht',who:'Agentur Nordlicht',title:'Videoproduktion',tid:4},
+ {s:'P',d:'2026-11-22',from:'11:00',to:'20:00',type:'gebucht',who:'Lumen Records',title:'Musikvideo'},
+ {s:'P',d:'2026-11-27',from:'18:00',to:'23:00',type:'reserviert',who:'Agentur Pixelwerk',title:'Weihnachtsfeier'},
+ {s:'F',d:'2026-11-28',from:'09:00',to:'17:00',type:'gebucht',who:'Lea Martens',title:'Lookbook'},
+ {s:'F',d:'2026-12-03',from:'09:00',to:'17:00',type:'gebucht',who:'Brandt Coaching',title:'Strategie-Workshop'},
+ {s:'P',d:'2026-12-05',from:'09:00',to:'19:00',type:'gebucht',who:'Hoffmann Produktion',title:'Kampagne Winter'},
+ {s:'P',d:'2026-12-08',from:'08:00',to:'18:00',type:'gebucht',who:'Agentur Wolkenwerk',title:'Kampagnen-Shoot'},
+ {s:'F',d:'2026-12-08',from:'09:00',to:'15:00',type:'reserviert',who:'Studio Feinkorn',title:'Produktfotos'},
+ {s:'F',d:'2026-12-09',from:'09:00',to:'18:00',type:'reserviert',who:'Clara Nguyen',title:'Produktshoot Tag 1',tid:9},
+ {s:'F',d:'2026-12-10',from:'09:00',to:'18:00',type:'reserviert',who:'Clara Nguyen',title:'Produktshoot Tag 2',tid:9},
+ {s:'F',d:'2026-12-11',from:'09:00',to:'18:00',type:'reserviert',who:'Clara Nguyen',title:'Produktshoot Tag 3',tid:9},
+ {s:'P',d:'2026-12-10',from:'',to:'',type:'block',who:'',title:'Privat geblockt'},
+ {s:'P',d:'2026-12-12',from:'10:00',to:'22:00',type:'gebucht',who:'Yogaflow Köln',title:'Jahresabschluss'},
+ {s:'P',d:'2026-12-24',type:'block',title:'Weihnachten'},{s:'F',d:'2026-12-24',type:'block',title:'Weihnachten'},
+ {s:'P',d:'2026-12-25',type:'block',title:'Weihnachten'},{s:'F',d:'2026-12-25',type:'block',title:'Weihnachten'},
+ {s:'P',d:'2026-12-26',type:'block',title:'Weihnachten'},{s:'F',d:'2026-12-26',type:'block',title:'Weihnachten'},
+];
+let calMonth=new Date(2026,10,1), calStudio='both', selDay=dkey(now), calMode='month';
+const bookingOf=(s,k)=>bookings.find(b=>b.s===s&&b.d===k);
+const TYPE_L={gebucht:'Gebucht',reserviert:'Reserviert',block:'Geblockt'};
+function alternatives(s,k){
+  const out=[],base=pkey(k);
+  for(let i=1;i<=10&&out.length<3;i++)for(const sg of [-1,1]){const d=new Date(base);d.setDate(d.getDate()+i*sg);const kk=dkey(d);if(d>now&&!bookingOf(s,kk)&&out.length<3&&!out.includes(kk))out.push(kk);}
+  return out.sort();
+}
+const joinDe=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' oder '+a[a.length-1];
+function draftsFor(t){
+  const r=t.req;
+  if(r&&t.status!=='spam'){
+    const b=bookingOf(r.s,r.d);
+    if(b&&b.tid!==t.id){
+      const O=r.s==='P'?'F':'P', ob=bookingOf(O,r.d), alts=alternatives(r.s,r.d).map(fmtDayLong);
+      const hi=`Hallo ${first(t)},`, S=STUDIO[r.s], dd=fmtDayLong(r.d);
+      return [
+       ['Belegt + Alternativen',`${hi}\nvielen Dank für deine Anfrage! Am ${dd} ist das ${S} leider schon vergeben.\n\nAls Alternative wäre das ${S} am ${joinDe(alts)} frei.${ob?'':` Am ${dd} selbst wäre außerdem noch das ${STUDIO[O]} frei.`}\n\nSoll ich dir einen der Termine unverbindlich reservieren?${SIG}`],
+       ['Kurz',`${hi}\nder ${dd} ist im ${S} leider schon belegt. Frei wäre ${joinDe(alts)}. Passt einer davon?${SIG}`],
+       ['Mit Warteliste',`${hi}\nam ${dd} ist das ${S} leider bereits reserviert. Ich setze euch gern auf die Warteliste und melde mich sofort, falls der Termin frei wird.\n\nAlternativ wäre ${joinDe(alts)} möglich.${SIG}`]];
+    }
+  }
+  return draftsFor0(t);
+}
+function availHTML(t){
+  const r=t.req; if(!r||t.status==='spam') return '';
+  const row=s=>{const b=bookingOf(s,r.d), own=b&&b.tid===t.id;
+    const st=!b?'<span class="av-st free">Frei</span>':`<span class="av-st ${own?'mine':b.type}">${own?'Für '+esc(first(t))+' '+TYPE_L[b.type].toLowerCase():TYPE_L[b.type]}</span>`;
+    return `<div class="av-row"><span class="sdot s${s}"></span><b>${STUDIO[s]}</b>${s===r.s?'<small>angefragt</small>':''}<span class="sp"></span>${st}</div>${b&&!own?`<div class="av-who">${esc(b.who||b.title)}${b.from?` · ${b.from} bis ${b.to}`:''}</div>`:''}`;};
+  const b=bookingOf(r.s,r.d), own=b&&b.tid===t.id;
+  let act='';
+  if(!b) act=`<button class="mini pri" data-reserve="${t.id}">${SNAME[r.s]} für ${esc(first(t))} reservieren</button>`;
+  else if(own) act=`${b.type==='reserviert'?`<button class="mini pri" data-confirm="${t.id}">Als gebucht markieren</button>`:''}<button class="mini" data-release="${t.id}">Freigeben</button>`;
+  else act=`<span class="alt">Frei: ${alternatives(r.s,r.d).map(k=>`<button class="mini" data-altday="${k}">${fmtDay(k)}</button>`).join('')}</span>`;
+  return `<div class="avail"><div class="avh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Verfügbarkeit · ${fmtDayLong(r.d)}<button class="link" data-showcal="${r.d}">Im Kalender</button></div>${row('P')}${row('F')}<div class="av-act">${act}</div>${b&&!own?'<p class="av-note">Die KI hat eine Antwort mit Alternativen vorbereitet.</p>':''}</div>`;
+}
+function miniMonth(y,m){
+  const off=(new Date(y,m,1).getDay()+6)%7, days=new Date(y,m+1,0).getDate(), studios=calStudio==='both'?['P','F']:[calStudio];
+  let cells='';for(let i=0;i<off;i++)cells+='<span></span>';
+  let busy=0;
+  for(let d=1;d<=days;d++){const k=`${y}-${pad(m+1)}-${pad(d)}`;const dots=studios.map(s=>{const b=bookingOf(s,k);if(b&&b.type!=='block')busy++;return b?`<i class="dt s${s} ${b.type}"></i>`:''}).join('');
+    cells+=`<button class="md ${k===dkey(now)?'today':''} ${pkey(k)<pkey(dkey(now))?'past':''}" data-day="${k}" data-tomonth="1"><span>${d}</span><span class="dts">${dots}</span></button>`;}
+  return `<div class="mm"><div class="mmh"><b>${new Date(y,m,1).toLocaleDateString('de-DE',{month:'long'})}</b><small>${y} · ${busy} belegt</small></div><div class="mmg">${['M','D','M','D','F','S','S'].map(w=>`<span class="mw">${w}</span>`).join('')}${cells}</div></div>`;
+}
+function calHTML(){
+  if(calMode==='year'){
+    const ms=[];for(let i=0;i<6;i++){const d=new Date(calMonth.getFullYear(),calMonth.getMonth()+i,1);ms.push(miniMonth(d.getFullYear(),d.getMonth()));}
+    return `<div class="cinner2 wide">${calTop()}<div class="mms">${ms.join('')}</div>${legendHTML()}</div>`;
+  }
+  return calMonthHTML();
+}
+const legendHTML=()=>`<div class="legend2"><span><i class="sdot sP"></i>Penthouse</span><span><i class="sdot sF"></i>Factory</span><span><i class="dt sP gebucht"></i>Gebucht</span><span><i class="dt sP reserviert"></i>Reserviert</span><span><i class="dt block"></i>Geblockt</span></div>`;
+function calTop(){return `<div class="calh"><div><h1>Kalender</h1><p class="sync"><i></i>Google Kalender · Penthouse Loft, Factory Loft</p></div><div class="seg"><button data-cm="month" aria-pressed="${calMode==='month'}">Monat</button><button data-cm="year" aria-pressed="${calMode==='year'}">6 Monate</button></div></div>
+   <div class="calbar"><div class="mnav"><button class="icon" data-mon="${calMode==='year'?-6:-1}" aria-label="Zurück">${I.back}</button><b>${calMode==='year'?calMonth.toLocaleDateString('de-DE',{month:'short'})+' bis '+new Date(calMonth.getFullYear(),calMonth.getMonth()+5,1).toLocaleDateString('de-DE',{month:'short',year:'numeric'}):calMonth.toLocaleDateString('de-DE',{month:'long',year:'numeric'})}</b><button class="icon flip" data-mon="${calMode==='year'?6:1}" aria-label="Weiter">${I.back}</button></div>
+   <div class="seg"><button data-cs="both" aria-pressed="${calStudio==='both'}">Beide</button><button data-cs="P" aria-pressed="${calStudio==='P'}">Penthouse</button><button data-cs="F" aria-pressed="${calStudio==='F'}">Factory</button></div></div>`;}
+function calMonthHTML(){
+  const y=calMonth.getFullYear(),m=calMonth.getMonth(), start=new Date(y,m,1), off=(start.getDay()+6)%7, days=new Date(y,m+1,0).getDate();
+  const cells=[];for(let i=0;i<off;i++)cells.push('<span class="cd pad"></span>');
+  const studios=calStudio==='both'?['P','F']:[calStudio];
+  for(let d=1;d<=days;d++){const k=`${y}-${pad(m+1)}-${pad(d)}`, dt=pkey(k);
+    const bars=studios.map(s=>{const b=bookingOf(s,k);return `<span class="cb s${s} ${b?b.type:'free'}"><em>${b?esc(b.type==='block'?b.title:(b.who||b.title)):''}</em></span>`}).join('');
+    cells.push(`<button class="cd ${k===dkey(now)?'today':''} ${k===selDay?'sel':''} ${dt<pkey(dkey(now))?'past':''} ${dt.getDay()%6===0?'we':''}" data-day="${k}"><span class="dn">${d}</span><span class="bars">${bars}</span></button>`);}
+  const sel=selDay?pkey(selDay):null;
+  const det=selDay?`<div class="dayd"><h3>${fmtDayLong(selDay)}</h3>${['P','F'].map(s=>{const b=bookingOf(s,selDay);return `<div class="dd-row"><span class="sdot s${s}"></span><div class="dd-t"><b>${STUDIO[s]}</b>${b?`<small>${TYPE_L[b.type]}${b.who?' · '+esc(b.who):''}${b.from?` · ${b.from} bis ${b.to}`:''}${b.title&&b.who?' · '+esc(b.title):b.type==='block'?' · '+esc(b.title):''}</small>`:'<small class="ok">Frei</small>'}</div>${b&&b.tid?`<button class="mini" data-id="${b.tid}">Anfrage</button>`:''}${!b?`<button class="mini" data-block="${s}">Blocken</button>`:b.type==='block'?`<button class="mini" data-unblock="${s}">Freigeben</button>`:''}</div>`}).join('')}</div>`:'';
+  const up=bookings.filter(b=>pkey(b.d)>=pkey(dkey(now))&&b.type!=='block'&&(calStudio==='both'||b.s===calStudio)).sort((a,b)=>a.d.localeCompare(b.d)).slice(0,6);
+  return `<div class="cinner2">
+   ${calTop()}
+   <div class="calwrap"><div class="calgrid">${['Mo','Di','Mi','Do','Fr','Sa','So'].map(w=>`<span class="wd">${w}</span>`).join('')}${cells.join('')}</div>
+   ${legendHTML()}</div></div>
+   <div class="calside">${det}<div class="agenda"><h3>Nächste Termine</h3>${up.map(b=>`<button class="ag" data-day="${b.d}"><span class="agd"><b>${pkey(b.d).getDate()}</b><small>${WD[pkey(b.d).getDay()]}</small></span><span class="sdot s${b.s}"></span><span class="ag-t"><b>${esc(b.who)}</b><small>${SNAME[b.s]} · ${esc(b.title)} · ${TYPE_L[b.type]}</small></span></button>`).join('')}</div></div>
+  </div>`;
+}
+function calClick(b){
+  if(b.dataset.mon){calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+ +b.dataset.mon,1);render();return true;}
+  if(b.dataset.cm){calMode=b.dataset.cm;render();return true;}
+  if(b.dataset.cs){calStudio=b.dataset.cs;render();return true;}
+  if(b.dataset.day){selDay=b.dataset.day;if(b.dataset.tomonth)calMode='month';const d=pkey(selDay);calMonth=new Date(d.getFullYear(),d.getMonth(),1);render();return true;}
+  if(b.dataset.block){bookings.push({s:b.dataset.block,d:selDay,type:'block',title:'Von dir geblockt',who:''});toast(`${STUDIO[b.dataset.block]} am ${fmtDay(selDay)} geblockt`);render();return true;}
+  if(b.dataset.unblock){bookings=bookings.filter(x=>!(x.s===b.dataset.unblock&&x.d===selDay&&x.type==='block'));toast('Wieder freigegeben');render();return true;}
+  if(b.dataset.showcal||b.dataset.altday){const k=b.dataset.showcal||b.dataset.altday;selDay=k;const d=pkey(k);calMonth=new Date(d.getFullYear(),d.getMonth(),1);view='cal';document.body.classList.remove('open');render();return true;}
+  const t=threads.find(x=>x.id===currentId);
+  if(b.dataset.reserve&&t){bookings.push({s:t.req.s,d:t.req.d,from:'09:00',to:'18:00',type:'reserviert',who:t.name,title:t.cat,tid:t.id});toast(`${STUDIO[t.req.s]} am ${fmtDay(t.req.d)} für ${first(t)} reserviert`);render();return true;}
+  if(b.dataset.confirm&&t){const x=bookingOf(t.req.s,t.req.d);x.type='gebucht';t.status='gebucht';t.color='gruen';toast('Als gebucht eingetragen');render();return true;}
+  if(b.dataset.release&&t){bookings=bookings.filter(x=>!(x.tid===t.id&&x.d===t.req.d&&x.s===t.req.s));toast('Termin freigegeben');render();return true;}
+  return false;
+}
+function syncBookingOnFinal(t){
+  if(!t.req||t.status!=='gebucht')return;
+  const x=bookingOf(t.req.s,t.req.d);
+  if(x&&x.tid===t.id)x.type='gebucht';
+  else if(!x)bookings.push({s:t.req.s,d:t.req.d,from:'09:00',to:'18:00',type:'gebucht',who:t.name,title:t.cat,tid:t.id});
+}
+
+// ---------- Einstellungen ----------
+let settings={theme:'system',tone:'du',autoDraft:true,autoSpam:true,notifyHot:true,rules:{soon:true,booking:true,regular:true,spam:true,stale:true,follow:true}};
+try{const s=JSON.parse(localStorage.getItem('loftinbox-settings')||'null');if(s)settings=Object.assign(settings,s,{rules:Object.assign(settings.rules,s.rules||{})});}catch(e){}
+function saveSettings(){try{localStorage.setItem('loftinbox-settings',JSON.stringify(settings));}catch(e){}}
+function applyTheme(){const r=document.documentElement;if(settings.theme==='system')r.removeAttribute('data-theme');else r.setAttribute('data-theme',settings.theme);}
+applyTheme();
+const sw=(key,on,label,sub)=>`<div class="srow"><div class="stx"><b>${label}</b>${sub?`<small>${sub}</small>`:''}</div><button class="switch" role="switch" aria-checked="${on}" data-sw="${key}" aria-label="${label}"><i></i></button></div>`;
+const conn=(label,sub,state,btn)=>`<div class="srow"><div class="stx"><b>${label}</b><small>${sub}</small></div><span class="cst ${state==='ok'?'ok':'todo'}">${state==='ok'?'Verbunden':'Noch einrichten'}</span>${btn?`<button class="mini" data-demo="${btn}">${btn}</button>`:''}</div>`;
+function settingsHTML(){
+  const th=v=>`<button data-theme-set="${v}" aria-pressed="${settings.theme===v}">${{light:'Hell',dark:'Dunkel',system:'System'}[v]}</button>`;
+  return `<div class="sinner">
+  <h1>Einstellungen</h1>
+  <section class="scard"><h3>Darstellung</h3>
+   <div class="srow"><div class="stx"><b>Erscheinungsbild</b><small>System folgt der Einstellung deines Geräts</small></div><div class="seg">${th('light')}${th('dark')}${th('system')}</div></div>
+  </section>
+  <section class="scard"><h3>Antworten</h3>
+   <div class="srow"><div class="stx"><b>Anrede</b><small>Standard für neue Kunden, die KI passt sich sonst an die Anfrage an</small></div><div class="seg"><button data-tone="du" aria-pressed="${settings.tone==='du'}">Du</button><button data-tone="sie" aria-pressed="${settings.tone==='sie'}">Sie</button></div></div>
+   <div class="srow col"><div class="stx"><b>Signatur</b><small>Wird unter jede Antwort gesetzt</small></div><textarea id="sigedit" rows="3">Viele Grüße
+Klaus
+Loft Studio Cologne · loftstudiocologne.com</textarea></div>
+   ${sw('autoDraft',settings.autoDraft,'Antworten automatisch vorbereiten','Bei jeder neuen Anfrage liegen 3 Entwürfe bereit')}
+  </section>
+  <section class="scard"><h3>Prioritäts-Regeln</h3>
+   ${sw('rules.soon',settings.rules.soon,'Termin in den nächsten 7 Tagen','Wird als Dringend markiert')}
+   ${sw('rules.booking',settings.rules.booking,'Rückfrage zu bestehender Buchung','Wird als Dringend markiert')}
+   ${sw('rules.regular',settings.rules.regular,'Stammkunden erkennen','Markierung Lila')}
+   ${sw('rules.spam',settings.rules.spam,'Spam automatisch aussortieren','Werbung, SEO, gefälschte Mahnungen')}
+   ${sw('rules.stale',settings.rules.stale,'Warnung nach 12 h ohne Antwort','')}
+   ${sw('rules.follow',settings.rules.follow,'Nachfassen nach 3 Tagen','Wenn auf ein Angebot keine Rückmeldung kommt')}
+  </section>
+  <section class="scard"><h3>Benachrichtigungen</h3>
+   ${sw('notifyHot',settings.notifyHot,'Push bei dringenden Anfragen','Auf iPhone und Mac')}
+  </section>
+  <section class="scard"><h3>Verbindungen</h3>
+   ${conn('Postfach',MAILBOX+' · IMAP und SMTP bei domainFACTORY','todo','Einrichten')}
+   ${conn('Google Kalender','Penthouse Loft, Factory Loft','todo','Verbinden')}
+   ${conn('Notion','FAQ, Preise und Fact Sheets','todo','Verbinden')}
+   ${conn('Freshdesk-Import',importState.done?'1.284 Tickets, 612 Kontakte, 131 Dokumente':'Alter Schriftverkehr, Kontakte und Anhänge, einmalig',importState.done?'ok':'todo','Importieren')}
+  </section>
+  <section class="scard"><h3>Sicherheit</h3>
+   <div class="srow"><div class="stx"><b>Passkey</b><small>Face ID auf iPhone und Mac</small></div><span class="cst todo">Noch einrichten</span></div>
+   <div class="srow"><div class="stx"><b>Authenticator-App</b><small>Zweiter Faktor als Backup</small></div><span class="cst todo">Noch einrichten</span></div>
+   <div class="srow"><div class="stx"><b>Angemeldete Geräte</b><small>Alle Geräte auf einmal abmelden</small></div><button class="mini" data-demo="Abmelden">Alle abmelden</button></div>
+  </section>
+  <p class="sub" style="margin:0">Prototyp: Darstellung und Schalter funktionieren, Verbindungen werden in der echten Version eingerichtet.</p>
+ </div>`;
+}
+function setClick(b){
+  if(b.dataset.themeSet){settings.theme=b.dataset.themeSet;applyTheme();saveSettings();render();return true;}
+  if(b.dataset.tone){settings.tone=b.dataset.tone;saveSettings();render();return true;}
+  if(b.dataset.sw){const k=b.dataset.sw;if(k.startsWith('rules.'))settings.rules[k.slice(6)]=!settings.rules[k.slice(6)];else settings[k]=!settings[k];saveSettings();render();return true;}
+  if(b.dataset.demo){toast('In der Demo noch nicht verbunden');return true;}
+  return false;
+}
+
+// ---------- Kontakte, Dokumente, Freshdesk-Import ----------
+const DOC_TYPES={rechnung:{l:'Rechnung',c:'var(--primary)'},motiv:{l:'Motivvertrag',c:'var(--sF)'},release:{l:'Model Release',c:'var(--violet)'},angebot:{l:'Angebot',c:'var(--orange)'},sonst:{l:'Sonstiges',c:'var(--mute)'}};
+const guessType=n=>{n=n.toLowerCase();return /rechnung|invoice|re-?\d/.test(n)?'rechnung':/release/.test(n)?'release':/motiv|location|vertrag/.test(n)?'motiv':/angebot|offer/.test(n)?'angebot':'sonst';};
+const parseSig=s=>{const l=(s||'').split('\n');const ph=(s||'').match(/\+49[\d\s]+/);return {phone:ph?ph[0].trim():'',company:l.find((x,i)=>i>0&&!/^T |\+49|www\.|@|·|Instagram|gesendet/.test(x)&&!/^(Producerin|Geschäftsführer|Produktion|Art Direction|Porträtfotografie)/.test(x))||'',addr:(l.find(x=>/\d{5} Köln/.test(x))||'')};};
+const DOCS_BY_MAIL={
+ 'produktion@nordlicht-agentur.de':[{t:'rechnung',n:'Rechnung_2026-087.pdf',d:'2026-09-30',st:'bezahlt'},{t:'rechnung',n:'Rechnung_2026-041.pdf',d:'2026-05-14',st:'bezahlt'},{t:'motiv',n:'Motivvertrag_Nordlicht_2026.pdf',d:'2026-03-02',st:'unterschrieben'}],
+ 'tim@schroeder-film.de':[{t:'motiv',n:'Motivvertrag_Schroeder_08-11.pdf',d:'2026-11-02',st:'unterschrieben'},{t:'release',n:'Model-Releases_Dreh_08-11.pdf',d:'2026-11-03',st:'ausstehend'}],
+ 'kevin@lorenz-portraits.de':[{t:'rechnung',n:'Rechnung_2026-102.pdf',d:'2026-10-20',st:'offen'}],
+ 'm.brandt@brandt-coaching.com':[{t:'angebot',n:'Angebot_2026-121.pdf',d:'2026-11-04',st:'gesendet'}],
+ 'clara@nguyen-design.com':[{t:'angebot',n:'Angebot_2026-118.pdf',d:'2026-11-02',st:'gesendet'}],
+};
+let contacts=[], selContact=null, cquery='', docFilter='alle', importState={step:'form',pct:0,label:'',done:false,opts:{tickets:true,contacts:true,att:true}};
+function buildContacts(){
+  const seen={};
+  threads.filter(t=>t.status!=='spam').forEach(t=>{if(seen[t.email])return;const p=parseSig(t.sig);seen[t.email]=1;
+    const ex=contacts.find(c=>c.email===t.email);if(ex)return;
+    contacts.push({id:'c'+t.id,name:t.name,email:t.email,company:p.company===t.name?'':p.company,phone:p.phone,addr:p.addr,tags:t.color==='lila'?['Stammkunde']:[],docs:(DOCS_BY_MAIL[t.email]||[]).slice(),src:'Anfrage'});});
+}
+const IMPORTED=[
+ {name:'Studio Feinkorn',email:'hallo@studio-feinkorn.de',company:'Studio Feinkorn',phone:'+49 221 555 12 90',tags:['Stammkunde'],docs:[{t:'rechnung',n:'Rechnung_2026-079.pdf',d:'2026-09-02',st:'bezahlt'},{t:'motiv',n:'Motivvertrag_Feinkorn.pdf',d:'2025-11-12',st:'unterschrieben'}]},
+ {name:'Fotografie Lang',email:'info@fotografie-lang.de',company:'Fotografie Lang',phone:'+49 2203 555 410',tags:[],docs:[{t:'release',n:'Model-Release_Familie-Berg.pdf',d:'2026-06-21',st:'unterschrieben'}]},
+ {name:'Lumen Records',email:'booking@lumen-records.de',company:'Lumen Records GmbH',phone:'',tags:[],docs:[{t:'angebot',n:'Angebot_2026-109.pdf',d:'2026-10-11',st:'angenommen'}]},
+ {name:'Tonwerk Köln',email:'kurse@tonwerk.koeln',company:'Tonwerk Köln',phone:'+49 221 555 87 00',tags:['Stammkunde'],docs:[{t:'rechnung',n:'Rechnung_2026-064.pdf',d:'2026-07-19',st:'bezahlt'}]},
+];
+function contactOf(t){buildContacts();return contacts.find(c=>c.email===t.email);}
+function contactRowHTML(t){const c=contactOf(t);if(!c)return '';const past=threads.filter(x=>x.email===t.email&&x.id!==t.id).length;
+  return `<button class="crow" data-contact="${c.id}"><span class="stx"><b>Kontakt & Dokumente</b><small>${c.docs.length} ${c.docs.length===1?'Dokument':'Dokumente'}${past?` · ${past} frühere Anfrage${past>1?'n':''}`:''}${c.phone?' · '+esc(c.phone):''}</small></span><span class="chev">›</span></button>`;}
+function contactsHTML(){
+  buildContacts();
+  const q=cquery.toLowerCase(), list=contacts.filter(c=>!q||(c.name+c.email+c.company).toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
+  const c=contacts.find(x=>x.id===selContact);
+  return `<div class="cwrap ${c?'has':''}"><div class="clist"><div class="lh"><div><h1>Kontakte</h1><p>${contacts.length} Kontakte${importState.done?' · inkl. Freshdesk':''}</p></div></div>
+   <div class="search"><label class="sbox">${I.search}<input id="cq" type="search" placeholder="Name, Firma oder E-Mail" value="${esc(cquery)}" autocomplete="off"></label></div>
+   <div class="rows" id="clrows">${clistRows(list)}</div></div>
+   <div class="cdet">${c?contactDetail(c):'<div class="empty"><b>Kontakt auswählen</b>Mit allen Anfragen, Buchungen und Dokumenten.</div>'}</div></div>`;
+}
+const clistRows=list=>list.map(c=>`<button class="row" data-contact="${c.id}" aria-current="${c.id===selContact}">${avatar(c,false)}<span class="rc"><span class="r1"><b>${esc(c.name)}</b>${c.tags.includes('Stammkunde')?'<span class="ctag">Stammkunde</span>':''}</span><span class="r2">${esc(c.email)}</span><span class="r3">${c.company&&c.company!==c.name?esc(c.company)+' · ':''}${c.docs.length} Dok.</span></span></button>`).join('')||'<div class="empty">Kein Kontakt gefunden.</div>';
+function contactDetail(c){
+  const ts=threads.filter(t=>t.email===c.email), bs=bookings.filter(b=>b.who&&(b.who===c.name||b.who===c.company||(c.company&&c.company.includes(b.who))));
+  const docs=c.docs.filter(d=>docFilter==='alle'||d.t===docFilter).sort((a,b)=>b.d.localeCompare(a.d));
+  const stc=s=>/bezahlt|unterschrieben|angenommen/.test(s)?'ok':/offen|ausstehend/.test(s)?'warn':'neutral';
+  return `<header class="dh"><button class="icon back" data-cback="1" aria-label="Zurück">${I.back}</button>${avatar(c,false)}<div class="dh-t"><b>${esc(c.name)}</b><small>${esc(c.company&&c.company!==c.name?c.company:c.email)}</small></div></header>
+  <div class="dscroll"><div class="dinner">
+   <div class="ccard"><div class="kv"><span>E-Mail</span><b>${esc(c.email)}</b><button class="mini" data-copy="${esc(c.email)}">Kopieren</button></div>${c.phone?`<div class="kv"><span>Telefon</span><b>${esc(c.phone)}</b><button class="mini" data-copy="${esc(c.phone)}">Kopieren</button></div>`:''}${c.addr?`<div class="kv"><span>Adresse</span><b>${esc(c.addr)}</b></div>`:''}<div class="kv"><span>Quelle</span><b>${c.src==='Freshdesk'?'Freshdesk-Import':'Aus E-Mail-Signatur erkannt'}</b></div></div>
+   <div class="sechd"><h3>Dokumente</h3><label class="mini pri upl">Hochladen<input type="file" id="docup" multiple hidden></label></div>
+   <div class="seg dseg">${[['alle','Alle'],['rechnung','Rechnungen'],['motiv','Motivverträge'],['release','Model Releases'],['angebot','Angebote']].map(([k,l])=>`<button data-df="${k}" aria-pressed="${docFilter===k}">${l}</button>`).join('')}</div>
+   <div class="ccard">${docs.length?docs.map(d=>`<div class="drow"><span class="dic" style="--c:${DOC_TYPES[d.t].c}">PDF</span><span class="stx"><b>${esc(d.n)}</b><small>${DOC_TYPES[d.t].l} · ${pkey(d.d).toLocaleDateString('de-DE')}</small></span>${d.st?`<span class="dst ${stc(d.st)}">${d.st}</span>`:''}</div>`).join(''):'<p class="none">Noch keine Dokumente in dieser Kategorie. Hochgeladene Dateien ordnet die KI automatisch ein.</p>'}</div>
+   <h3 class="sh">Anfragen</h3><div class="ccard">${ts.length?ts.map(t=>`<button class="drow" data-id="${t.id}"><span class="stx"><b>${esc(t.subject)}</b><small>${t.msgs[0].t.toLocaleDateString('de-DE')} · ${STUDIO[t.studio]}</small></span>${stPill(t)}</button>`).join(''):'<p class="none">Nur über Freshdesk-Import bekannt.</p>'}</div>
+   ${bs.length?`<h3 class="sh">Buchungen</h3><div class="ccard">${bs.map(b=>`<button class="drow" data-showcal="${b.d}"><span class="sdot s${b.s}"></span><span class="stx"><b>${fmtDayLong(b.d)}</b><small>${SNAME[b.s]} · ${esc(b.title)}</small></span><span class="dst ${b.type==='gebucht'?'ok':'warn'}">${TYPE_L[b.type]}</span></button>`).join('')}</div>`:''}
+  </div></div>`;
+}
+function importSheetHTML(){
+  const s=importState, ck=(k,l,sub)=>`<button class="doc" data-iopt="${k}" aria-pressed="${s.opts[k]}"><span class="stx"><b>${l}</b><small>${sub}</small></span><span class="ck">✓</span></button>`;
+  if(s.step==='form') return `<h2>Freshdesk importieren</h2><p class="hint" style="margin:0 0 6px">Einmaliger Import des alten Schriftverkehrs. Danach kannst du Freshdesk kündigen.</p>
+   <h3>Zugang</h3><label class="fl">Freshdesk-Adresse<input id="fdurl" value="loftstudiocologne.freshdesk.com"></label><label class="fl">API-Schlüssel<input id="fdkey" type="password" value="demo-schluessel-123" autocomplete="off"><small>Freshdesk: Profil-Einstellungen, "API-Schlüssel anzeigen"</small></label>
+   <h3>Was importieren</h3><div class="doclist">${ck('tickets','Tickets mit komplettem Verlauf','Alle Nachrichten, Status und Notizen')}${ck('contacts','Kontakte und E-Mail-Adressen','Name, Firma, Telefon; doppelte werden zusammengeführt')}${ck('att','Anhänge','Rechnungen, Verträge, Releases; die KI sortiert sie den Kontakten zu')}</div>
+   <button class="sbtn" id="startimport">Import starten</button>`;
+  if(s.step==='run') return `<h2>Import läuft</h2><div class="prog"><i style="width:${s.pct}%"></i></div><p class="plabel">${esc(s.label)}</p><p class="hint">Du kannst das Fenster schließen, der Import läuft im Hintergrund weiter.</p>`;
+  return `<h2>Import abgeschlossen</h2><div class="isum">
+   <div><b>1.284</b><small>Tickets</small></div><div><b>612</b><small>Kontakte</small></div><div><b>23</b><small>zusammengeführt</small></div><div><b>131</b><small>Dokumente</small></div></div>
+   <div class="ccard" style="margin-top:8px"><div class="kv"><span>Rechnungen</span><b>96</b></div><div class="kv"><span>Motivverträge</span><b>14</b></div><div class="kv"><span>Model Releases</span><b>9</b></div><div class="kv"><span>Angebote</span><b>12</b></div></div>
+   <p class="hint">Die Statistik zeigt jetzt die Historie seit 2021, und die KI lernt aus deinen bisherigen Antworten.</p>
+   <button class="sbtn" data-view="contacts">Kontakte ansehen</button>`;
+}
+function runImport(){
+  const st=[['Verbinde mit Freshdesk …',6],['Kontakte 612 von 612',22],['Tickets 412 von 1.284',40],['Tickets 1.284 von 1.284',62],['Anhänge 131 von 131',80],['KI ordnet Dokumente und Kategorien zu …',94],['Fertig',100]];
+  importState.step='run';let i=0;render();
+  const tm=setInterval(()=>{const [l,p]=st[i++];importState.label=l;importState.pct=p;
+    if(i>=st.length){clearInterval(tm);importState.step='done';importState.done=true;
+      IMPORTED.forEach((c,j)=>{if(!contacts.find(x=>x.email===c.email))contacts.push(Object.assign({id:'imp'+j,addr:'',src:'Freshdesk'},c,{docs:c.docs.slice()}));});
+      toast('Freshdesk-Import abgeschlossen');}
+    if(sheet==='import')render();},650);
+}
+function contactsClick(b){
+  if(b.dataset.contact){buildContacts();selContact=b.dataset.contact;view='contacts';sheet=null;document.body.classList.add('copen');render();return true;}
+  if(b.dataset.cback){document.body.classList.remove('copen');selContact=null;render();return true;}
+  if(b.dataset.df){docFilter=b.dataset.df;render();return true;}
+  if(b.dataset.copy){const v=b.dataset.copy;try{navigator.clipboard.writeText(v).then(()=>toast('Kopiert'),()=>toast(v));}catch(e){toast(v);}return true;}
+  if(b.dataset.iopt){importState.opts[b.dataset.iopt]=!importState.opts[b.dataset.iopt];render();return true;}
+  if(b.id==='startimport'){runImport();return true;}
+  if(b.dataset.demo==='Importieren'){sheet='import';if(importState.step==='done')importState.step='done';render();return true;}
+  return false;
+}
+document.addEventListener('change',e=>{
+  if(e.target.id==='docup'){const c=contacts.find(x=>x.id===selContact);if(!c)return;
+    const fs=[...e.target.files];fs.forEach(f=>c.docs.push({t:guessType(f.name),n:f.name,d:dkey(now),st:''}));
+    toast(fs.length===1?`Als ${DOC_TYPES[guessType(fs[0].name)].l} abgelegt`:`${fs.length} Dateien abgelegt`);render();}
+});
+document.addEventListener('input',e=>{if(e.target.id==='cq'){cquery=e.target.value;buildContacts();const q=cquery.toLowerCase();document.getElementById('clrows').innerHTML=clistRows(contacts.filter(c=>!q||(c.name+c.email+c.company).toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name)));}});
+
+let tfil='alle', page=0, pageSize=25, selMode=false, selected=new Set(), sheet=null, sheetTab='docs', query='', flt={studio:null,cat:null,color:null,range:null}, mailView='mail', expanded={}, quoteOpen={}, attach={}, pick=[];
+const I={
+ back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+ star:on=>`<svg viewBox="0 0 24 24" fill="${on?'currentColor':'none'}" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>`,
+ done:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16.5 9.5"/></svg>',
+ more:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
+ spark:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/></svg>',
+ search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg>',
+ filter:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>',
+ clip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5l-7.8 7.8a5 5 0 01-7.1-7.1l8.5-8.5a3.3 3.3 0 014.7 4.7l-8.5 8.5a1.7 1.7 0 01-2.4-2.4l7.8-7.8"/></svg>'
+};
+const DOCS=[
+ {id:'fs-p',name:'Penthouse-Loft_Fact-Sheet.pdf',meta:'4 Seiten · aus Notion aktualisiert'},
+ {id:'fs-f',name:'Factory-Loft_Fact-Sheet.pdf',meta:'4 Seiten · aus Notion aktualisiert'},
+ {id:'preis',name:'Preisliste_2026.pdf',meta:'1 Seite · Preise aus Notion'},
+ {id:'agb',name:'AGB_Loft-Studio-Cologne.pdf',meta:'2 Seiten'},
+ {id:'anf',name:'Anfahrt_und_Parken.pdf',meta:'1 Seite'},
+ {id:'motivv',name:'Motivvertrag_Vorlage.pdf',meta:'Vorlage · zum Unterschreiben'},
+ {id:'relv',name:'Model-Release_Vorlage.pdf',meta:'Vorlage · DE/EN'},
+];
+const win='repeating-linear-gradient(90deg,transparent 0 22%,rgb(255 255 255/.35) 22% 24%),';
+const IMGS=[
+ {id:'p1',name:'Penthouse · Hauptraum',bg:win+'linear-gradient(170deg,#f4efe6,#d9cfbf 55%,#9c8c76)'},
+ {id:'p2',name:'Penthouse · Küche',bg:'linear-gradient(180deg,#e7e2d8 0 55%,#3d3a36 55% 62%,#b9ad99 62%)'},
+ {id:'p3',name:'Penthouse · Make-up',bg:'radial-gradient(circle at 30% 35%,#fff7e0 0 12%,transparent 13%),radial-gradient(circle at 70% 35%,#fff7e0 0 12%,transparent 13%),linear-gradient(160deg,#c9b7a6,#8a7766)'},
+ {id:'f1',name:'Factory · Arbeitsraum',bg:win+'linear-gradient(175deg,#dfe3e6,#a9b1b7 60%,#5d666d)'},
+ {id:'f2',name:'Factory · Seminar',bg:'repeating-linear-gradient(0deg,transparent 0 30%,#6f5a44 30% 34%),linear-gradient(170deg,#e6e8ea,#9aa3aa)'},
+ {id:'f3',name:'Factory · Styling-Ecke',bg:'linear-gradient(90deg,#2f3437 0 18%,transparent 18%),linear-gradient(160deg,#d5d9dc,#7d878e)'},
+];
+const AV=['#2b4fe0','#d6409f','#1f9d5c','#e08a00','#8e4ec6','#0e9bb5','#e5484d'];
+const avc=n=>AV[[...n].reduce((a,c)=>a+c.charCodeAt(0),0)%AV.length];
+const ini=n=>n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const avatar=(t,mk=true)=>{const c=avc(t.name);return `<span class="av" style="background:color-mix(in srgb,${c} 16%,var(--surface));color:${c}">${esc(ini(t.name))}${mk&&t.color?`<span class="mk" style="--c:${COLORS[t.color]}"></span>`:''}</span>`};
+const ST_LABEL={offen:'Offen',beantwortet:'Wartet auf Kunde',gebucht:'Gebucht',abgeschlossen:'Abgeschlossen',spam:'Spam'};
+const stPill=t=>`<span class="st st-${t.status}">${ST_LABEL[t.status]}</span>`;
+const fmtFull=d=>d.toLocaleString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+const docName=id=>(DOCS.find(d=>d.id===id)||IMGS.find(d=>d.id===id)).name;
+const isImg=n=>!/\.pdf$/i.test(n);
+const attChip=(n,rm)=>`<span class="att"><span class="ic ${isImg(n)?'img':''}">${isImg(n)?'JPG':'PDF'}</span><span>${esc(isImg(n)?n.replace(' · ','_').replace(/\s/g,'')+'.jpg':n)}</span>${rm?`<button data-rm="${rm}" aria-label="Entfernen">×</button>`:''}</span>`;
+const hay=t=>(t.name+' '+t.email+' '+t.subject+' '+t.summary+' '+t.cat+' '+STUDIO[t.studio]+' '+t.msgs.map(m=>m.x+' '+(m.att||[]).join(' ')).join(' ')).toLowerCase();
+const tokens=q=>(q.match(/"[^"]+"|\S+/g)||[]).map(s=>s.replace(/"/g,'').toLowerCase()).filter(Boolean);
+const hl=(s,toks)=>{let r=esc(s);toks.forEach(k=>{if(k.length<2)return;r=r.replace(new RegExp('('+k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark>$1</mark>')});return r;};
+
+const FILTERS2=[
+ ['alle','Alle',t=>t.status!=='spam'],
+ ['offen','Offen',t=>t.status==='offen'],
+ ['wichtig','Wichtig',t=>t.star||(t.prio==='hoch'&&t.status==='offen')],
+ ['wartet','Wartet auf Kunde',t=>t.status==='beantwortet'],
+ ['gebucht','Gebucht',t=>t.status==='gebucht'],
+ ['abgeschlossen','Abgeschlossen',t=>t.status==='abgeschlossen'],
+ ['spam','Spam',t=>t.status==='spam'],
+ ['vspam','Möglicher Spam',t=>t.status!=='spam'&&(t.spamRisk||0)>=40],
+];
+const ASKS=['@ Zeige möglichen Spam','@ Wer wollte das Blitzset?','@ Welche Anfragen sind für Dezember?','@ Wer ist Stammkunde?','@ Was ist noch offen?'];
+const STOP=new Set('wer was wann wie wo wollte wollten nochmal noch mal das der die den dem des ein eine einen hat haben hatte ist sind war für mit und oder im in am an welche welcher welches gibt es uns ich wir zu von auf nach gefragt angefragt anfragen anfrage nach bei kann können'.split(' '));
+const SYN={dezember:['dezember','.12.'],november:['november','.11.'],januar:['januar','.01.'],blitzset:['blitz','godox','profoto'],blitz:['blitz','godox','profoto'],stammkunde:['stammkunde'],workshop:['workshop','seminar']};
+
+const dayDiff=d=>Math.floor((pkey(dkey(now))-pkey(dkey(d)))/864e5);
+const bucket=t=>{const n=dayDiff(t.at);return n<=0?[0,'Heute']:n===1?[1,'Gestern']:n<7?[2,'Letzte 7 Tage']:n<31?[3,'Diesen Monat']:[4,'Älter'];};
+const TI={
+ neu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="8"/></svg>',
+ woche:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h2M12 14h2M16 14h0"/></svg>',
+ alt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4.5" rx="1.2"/><path d="M5 8.5V18a2 2 0 002 2h10a2 2 0 002-2V8.5M10 12.5h4"/></svg>',
+ alle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>'};
+const statusF=k=>(tfil==='alt'||k==='alt')&&filter==='alle'?(t=>t.status!=='spam'):FILTERS2.find(x=>x[0]===filter)[2];
+const TFIL={alle:{l:'Alle',f:()=>true},neu:{l:'Neu',f:t=>t.unread||dayDiff(t.at)<=1},woche:{l:'7 Tage',f:t=>dayDiff(t.at)<7},alt:{l:'Älter',f:t=>dayDiff(t.at)>=7}};
+function render(){
+  document.body.dataset.view=view;
+  document.querySelectorAll('.nav').forEach(n=>n.dataset.view===view?n.setAttribute('aria-current','page'):n.removeAttribute('aria-current'));
+  const oc=threads.filter(t=>t.status==='offen').length, nc=document.getElementById('navcnt'); nc.textContent=oc; nc.hidden=!oc;
+  if(view==='stats'){document.getElementById('stats').innerHTML=statsHTML();document.body.classList.remove('open');}
+  else if(view==='contacts'){document.getElementById('contacts').innerHTML=contactsHTML();document.body.classList.remove('open');}
+  else if(view==='set'){document.getElementById('set').innerHTML=settingsHTML();document.body.classList.remove('open');}
+  else if(view==='cal'){document.getElementById('cal').innerHTML=calHTML();document.body.classList.remove('open');}
+  else{renderList();document.getElementById('detail').innerHTML=detailHTML();}
+  document.getElementById('sheet').innerHTML=sheet?sheetHTML():'';
+}
+function activeFilters(){return Object.values(flt).filter(v=>v).length;}
+function renderList(){
+  const L=document.getElementById('list'), had=document.activeElement&&document.activeElement.id==='q';
+  const open=threads.filter(t=>t.status==='offen').length, hot=threads.filter(t=>t.status==='offen'&&t.prio==='hoch').length, af=activeFilters();
+  L.innerHTML=`<div class="lh"><div><h1>Anfragen</h1><p>${open} offen${hot?` · <span class="hot">${hot} dringend</span>`:''}</p></div><span class="sp"></span><button class="ghost" id="selmode" aria-pressed="${selMode}">${selMode?'Fertig':'Auswählen'}</button><button class="ghost sq" id="newinq" title="Demo: neue E-Mail simulieren" aria-label="Demo-Mail simulieren">+</button></div>
+  <div class="tfil" role="group" aria-label="Zeitraum">${Object.entries(TFIL).filter(([k])=>k!=='alle').map(([k,v])=>`<button data-tf="${k}" aria-pressed="${tfil===k}">${TI[k]}<span>${v.l}</span><em>${threads.filter(statusF(k)).filter(v.f).length}</em></button>`).join('')}</div>
+  <div class="search"><label class="sbox">${I.search}<input id="q" type="search" autocomplete="off" placeholder="Suchen oder @ fragen" value="${esc(query)}" aria-label="Suchen"><button class="clr" id="clr" aria-label="Suche leeren" ${query?'':'hidden'}>×</button></label><button class="fbtn ${af?'on':''}" id="openfilter" aria-label="Filter">${I.filter}${af?`<span class="cnt">${af}</span>`:''}</button></div>
+  <div class="asks" id="asks" ${query?'hidden':''}>${ASKS.map(a=>`<button data-ask="${esc(a)}">${esc(a)}</button>`).join('')}</div>
+  <div class="filters">${FILTERS2.map(([k,l,f])=>`<button class="chip" data-f="${k}" aria-pressed="${filter===k}">${l}<span class="n">${threads.filter(f).length}</span></button>`).join('')}</div>
+  <div class="rows" id="rows">${rowsHTML()}</div>${bulkHTML()}`;
+  if(had){const q=document.getElementById('q');q.focus();q.setSelectionRange(q.value.length,q.value.length);}
+}
+function baseList(){
+  const cut=flt.range?+now-flt.range*864e5:0;
+  return threads.filter(t=>(!flt.studio||t.studio===flt.studio)&&(!flt.cat||t.cat===flt.cat)&&(!flt.color||t.color===flt.color)&&(!cut||+t.at>=cut));
+}
+function sortKey(t){return (t.prio==='hoch'&&t.status==='offen'?0:1)*1e6+(t.status==='offen'?0:1)*1e5-(+t.at)/1e7;}
+function askAnswer(q){
+  const words=tokens(q.replace(/^@/,'').replace(/[?!.,]/g,' ')).filter(w=>!STOP.has(w)&&w.length>2);
+  let res=[];
+  if(words.some(w=>w.startsWith('spam'))) res=threads.filter(t=>t.status!=='spam'&&(t.spamRisk||0)>=40);
+  else if(words.includes('offen')) res=threads.filter(t=>t.status==='offen');
+  else if(words.some(w=>w.startsWith('stammkund'))) res=threads.filter(t=>t.color==='lila');
+  else{
+    const keys=words.map(w=>SYN[w]||[w.length>5?w.slice(0,w.length-1):w]);
+    res=threads.filter(t=>t.status!=='spam').map(t=>{const H=hay(t);return [t,keys.filter(ks=>ks.some(k=>H.includes(k))).length]}).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).filter((x,i,a)=>x[1]===a[0][1]).map(x=>x[0]);
+  }
+  if(!res.length) return {html:`<p>Dazu habe ich in den Anfragen nichts gefunden. Versuch es mit anderen Worten oder ohne @ als normale Suche.</p>`,res};
+  const d=t=>t.msgs[0].t.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+  const html=res.length===1?`<p><b>${esc(res[0].name)}</b> (${STUDIO[res[0].studio]}, Anfrage vom ${d(res[0])}). ${esc(res[0].summary)}</p>`:`<p>${res.length} Anfragen passen:</p>${res.slice(0,5).map(t=>`<p><b>${esc(t.name)}</b>: ${esc(t.summary)}</p>`).join('')}`;
+  return {html,res};
+}
+function rowsHTML(){
+  const q=query.trim(); let list, pre='', toks=[];
+  if(q.startsWith('@')){
+    if(q.length<3) return `<div class="empty"><b>Frag einfach</b>Zum Beispiel: @ Wer wollte das Blitzset?</div>`;
+    const a=askAnswer(q); list=a.res;
+    pre=`<div class="answer"><div class="ah">${I.spark}KI-Antwort aus deinen Anfragen</div>${a.html}${a.res.length&&/spam/i.test(q)?'<p>Tipp: Oben auf "Auswählen", dann alle markieren und als Spam verschieben.</p>':''}${a.res.length?`<div class="src">${a.res.slice(0,5).map(t=>`<button data-id="${t.id}">${esc(t.name)} öffnen</button>`).join('')}</div>`:''}</div>`;
+  } else if(q){
+    toks=tokens(q); list=baseList().filter(t=>{const H=hay(t);return toks.every(k=>H.includes(k));});
+    pre=`<div class="rcount">${list.length} Treffer in allen Ordnern${activeFilters()?' · Filter aktiv':''}</div>`;
+  } else list=baseList().filter(statusF()).filter(TFIL[tfil].f);
+  const grouped=!q;
+  list=list.sort((a,b)=>grouped?(bucket(a)[0]-bucket(b)[0])||(sortKey(a)-sortKey(b)):sortKey(a)-sortKey(b));
+  if(!list.length&&!pre) return `<div class="empty"><b>Alles erledigt</b>Hier ist gerade nichts.</div>`;
+  const total=list.length, pages=Math.max(1,Math.ceil(total/pageSize)); if(page>=pages)page=pages-1;
+  const from=page*pageSize, shown=list.slice(from,from+pageSize);
+  const allSel=shown.length&&shown.every(t=>selected.has(t.id));
+  const selbar=selMode?`<div class="selbar"><button class="cbx-btn" id="selall" aria-pressed="${allSel}"><span class="cbx ${allSel?'on':''}">${allSel?'✓':''}</span>Alle auf dieser Seite (${shown.length})</button>${total>shown.length?`<button class="link" id="selevery">Alle ${total} wählen</button>`:''}</div>`:'';
+  let lastB=null;
+  const rows=shown.map(t=>{const w=waitingH(t);const bk=bucket(t);const gh=grouped&&bk[0]!==lastB?`<div class="grp">${bk[1]}<span>${list.filter(x=>bucket(x)[0]===bk[0]).length}</span></div>`:'';lastB=bk[0];
+   let snip='';
+   if(toks.length){const all=t.msgs.map(m=>m.x).join(' \u00b7 ').replace(/\s+/g,' ');const lo=all.toLowerCase();const i=Math.min(...toks.map(k=>{const p=lo.indexOf(k);return p<0?1e9:p}));if(i<1e9){const s=Math.max(0,i-40);snip=(s?'…':'')+all.slice(s,i+90)+'…';}}
+   const sel=selected.has(t.id), closed=t.status==='abgeschlossen'&&filter!=='abgeschlossen';
+   return gh+`<button class="row ${t.unread?'unread':''} ${closed?'closed':''} ${selMode?'selm':''} ${sel?'sel':''}" ${selMode?`data-sel="${t.id}" aria-pressed="${sel}"`:`data-id="${t.id}" aria-current="${t.id===currentId}"`}>
+   ${selMode?`<span class="cbx ${sel?'on':''}">${sel?'✓':''}</span>`:''}${avatar(t)}
+   <span class="rc">
+    <span class="r1"><b>${toks.length?hl(t.name,toks):esc(t.name)}</b>${t.star?`<span class="star" aria-label="wichtig">★</span>`:''}<time>${fmtT(t.at)}</time></span>
+    <span class="r2">${toks.length?hl(t.subject,toks):esc(t.subject)}</span>
+    ${snip?`<span class="r2s">${hl(snip,toks)}</span>`:''}
+    <span class="r3">${t.prio==='hoch'&&t.status==='offen'?'<span class="st st-hot">Dringend</span>':stPill(t)}${(t.spamRisk||0)>=40&&t.status!=='spam'?`<span class="st st-spam">Spam? ${t.spamRisk} %</span>`:''}<span>${STUDIO[t.studio].replace(' Loft','')} · ${t.cat}</span>${w>12?`<span class="hot">· ${Math.round(w)} h</span>`:''}</span>
+   </span></button>`}).join('');
+  const pager=`<div class="pager"><span class="pinfo">${from+1}–${from+shown.length} von ${total}</span><div class="seg psize" role="group" aria-label="Pro Seite">${[10,25,50].map(n=>`<button data-ps="${n}" aria-pressed="${pageSize===n}">${n}</button>`).join('')}</div><span class="pnav"><button class="icon" data-pg="-1" aria-label="Vorherige Seite" ${page===0?'disabled':''}>${I.back}</button><span class="pnum">${page+1}/${pages}</span><button class="icon flip" data-pg="1" aria-label="Nächste Seite" ${page>=pages-1?'disabled':''}>${I.back}</button></span></div>`;
+  return pre+selbar+rows+pager;
+}
+function bulkHTML(){
+  if(!selMode) return '';
+  const n=selected.size;
+  return `<div class="bulk"><span class="bn">${n} ausgewählt</span><div class="bacts">${[['offen','Offen'],['abgeschlossen','Erledigt'],['spam','Spam'],['nospam','Kein Spam']].map(([k,l])=>`<button data-bulk="${k}" ${n?'':'disabled'}>${l}</button>`).join('')}</div></div>`;
+}
+function mailHTML(t){
+  const firstIn=t.msgs.findIndex(m=>m.d==='in'), last=t.msgs.length-1;
+  return t.msgs.map((m,i)=>{
+    const key=t.id+'-'+i, open=i===firstIn||i===last||expanded[key];
+    const from=m.d==='in'?t:{name:'Klaus Dyba'}, fromN=m.d==='in'?t.name:'Klaus · Loft Studio Cologne';
+    const head=`<span class="mmeta"><span class="n"><b>${esc(fromN)}</b><time>${fmtFull(m.t)}</time></span><span class="to">an ${m.d==='in'?MAILBOX:esc(t.email)}</span>${open?'':`<span class="pv">${esc(m.x.replace(/\s+/g,' ').slice(0,90))}</span>`}${i===firstIn?'<span class="tagfirst">Erstanfrage</span>':''}</span>`;
+    if(!open) return `<div class="mail"><button class="mhead" data-exp="${key}">${avatar(from,false)}${head}</button></div>`;
+    const prev=i>0?t.msgs[i-1]:null;
+    return `<div class="mail ${i===firstIn?'first':''}"><div class="mhead">${avatar(from,false)}${head}</div><div class="mbody">${m.d==='out'&&i===last&&i!==firstIn?'':''}${esc(m.x)}${m.d==='in'?`<div class="msig">${esc(t.sig||t.name)}</div>`:''}${m.att?`<div class="atts">${m.att.map(n=>attChip(n)).join('')}</div>`:''}${prev?`<button class="qbtn" data-q="${key}" aria-label="Zitat zeigen">•••</button>${quoteOpen[key]?`<div class="quote">Am ${fmtFull(prev.t)} schrieb ${prev.d==='in'?esc(t.name):'Klaus Dyba'}:\n${esc(prev.x)}</div>`:''}`:''}</div></div>`;
+  }).join('')+(t.typing?`<div class="bub in typing">${esc(first(t))} schreibt <i>•</i><i>•</i><i>•</i></div>`:'');
+}
+function chatHTML(t){
+  return t.msgs.map(m=>`<div class="bub ${m.d}">${esc(m.x)}${m.att?`<div class="atts">${m.att.map(n=>attChip(n)).join('')}</div>`:''}<small>${m.d==='in'?esc(first(t)):'Du'} · ${fmtFull(m.t)}</small></div>`).join('')+(t.typing?`<div class="bub in typing">${esc(first(t))} schreibt <i>•</i><i>•</i><i>•</i></div>`:'');
+}
+function detailHTML(){
+  const t=threads.find(x=>x.id===currentId);
+  if(!t) return `<div class="empty"><b>Anfrage auswählen</b>Dringendes steht oben, der Punkt am Profilbild zeigt deine Markierung.</div>`;
+  const D=draftsFor(t); if(drafts[t.id]==null) drafts[t.id]=D[Math.min(variantIdx,D.length-1)][1];
+  const att=attach[t.id]||[], closed=t.status==='spam'||t.status==='abgeschlossen';
+  const sugg=!att.length&&t.studio!=='X'?(t.studio==='P'?'fs-p':'fs-f'):null;
+  return `<header class="dh"><button class="icon back" id="back" aria-label="Zurück">${I.back}</button>${avatar(t)}
+   <div class="dh-t"><b>${esc(t.name)}</b><small>${esc(t.email)}</small></div>
+   <button class="icon ${t.star?'star-on':''}" id="star" aria-label="Wichtig" title="Wichtig">${I.star(t.star)}</button>
+   <button class="icon ${t.status==='abgeschlossen'?'done-on':''}" id="done" aria-label="${t.status==='abgeschlossen'?'Wieder öffnen':'Abschließen'}" title="${t.status==='abgeschlossen'?'Wieder öffnen':'Abschließen'}">${I.done}</button>
+   <button class="icon" id="more" aria-label="Optionen">${I.more}</button></header>
+  <div class="dscroll" id="dscroll"><div class="dinner">
+   <h2>${esc(t.subject)}</h2>
+   <div class="pills">${stPill(t)}${t.prio==='hoch'&&t.status==='offen'?'<span class="st st-hot">Dringend</span>':''}${t.color?`<span class="pill"><span class="d" style="--c:${COLORS[t.color]}"></span>${COLOR_NAMES[t.color]}</span>`:''}<span class="pill">${STUDIO[t.studio]}</span><span class="pill">${t.cat}</span>${t.status==='spam'?`<span class="pill">Spam-Wert ${t.spam} %</span>`:''}</div>
+   <div class="sum"><div class="ah">${I.spark}Zusammenfassung</div>${esc(t.summary)}</div>
+   ${availHTML(t)}
+   ${contactRowHTML(t)}
+   <div class="vbar"><span>Verlauf · ${t.msgs.length} ${t.msgs.length===1?'Nachricht':'Nachrichten'}</span><div class="seg" role="group" aria-label="Ansicht"><button data-mv="mail" aria-pressed="${mailView==='mail'}">E-Mail</button><button data-mv="chat" aria-pressed="${mailView==='chat'}">Chat</button></div></div>
+   <div class="msgs">${mailView==='mail'?mailHTML(t):chatHTML(t)}</div>
+  </div></div>
+  <footer class="composer"><div class="cinner">${closed?`<div class="closed"><span>${t.status==='spam'?'Als Spam aussortiert.':'Abgeschlossen. Taucht nicht mehr unter Alle auf.'}</span><button class="ghost" id="${t.status==='spam'?'spam':'done'}">${t.status==='spam'?'Kein Spam':'Wieder öffnen'}</button></div>`:`
+   <div class="ctop"><span class="ailbl">${I.spark}KI</span><div class="seg" role="group" aria-label="Vorschläge">${D.map((d,i)=>`<button data-v="${i}" aria-pressed="${i===variantIdx}">${d[0]}</button>`).join('')}</div><span class="src-note">Infos aus Notion</span></div>
+   ${att.length||sugg?`<div class="catt">${att.map(id=>attChip(docName(id),id)).join('')}${sugg?`<button class="sugg" data-addatt="${sugg}">${I.spark.replace('<svg','<svg width="13" height="13"')} ${docName(sugg).replace('_',' ').replace('.pdf','')} anhängen?</button>`:''}</div>`:''}
+   <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
+   <textarea id="draft" aria-label="Antwort">${esc(drafts[t.id])}</textarea>
+   <div class="cbar"><button class="clip" id="openatt" aria-label="Anhang">${I.clip}</button><div class="refine"><button data-i="kurz">Kürzer</button><button data-i="sie">Sie-Form</button><button data-i="besicht">+ Besichtigung</button><button data-i="rechnung">+ Zahlung</button></div><button class="send" id="send">Senden</button></div>`}
+  </div></footer>`;
+}
+function sheetHTML(){
+  const t=threads.find(x=>x.id===currentId);
+  const opt=(k,v,label,dot)=>`<button class="opt" data-flt="${k}" data-val="${v}" aria-pressed="${flt[k]==v}">${dot?`<span class="d" style="--c:${dot}"></span>`:''}${label}</button>`;
+  let inner='';
+  if(sheet==='import'){inner=importSheetHTML();}
+  else if(sheet==='filter'){
+    const cats=[...new Set(threads.map(x=>x.cat))];
+    inner=`<h2>Filter</h2>
+    <h3>Studio</h3><div class="opts">${opt('studio','P','Penthouse')}${opt('studio','F','Factory')}${opt('studio','X','Nicht festgelegt')}</div>
+    <h3>Art der Anfrage</h3><div class="opts">${cats.map(c=>opt('cat',c,c)).join('')}</div>
+    <h3>Markierung</h3><div class="opts">${Object.keys(COLORS).map(c=>opt('color',c,COLOR_NAMES[c],COLORS[c])).join('')}</div>
+    <h3>Zeitraum</h3><div class="opts">${opt('range',1,'Heute')}${opt('range',7,'7 Tage')}${opt('range',30,'30 Tage')}</div>
+    <button class="sbtn" id="closesheet">Fertig</button><button class="sbtn sec" id="resetflt">Zurücksetzen</button>`;
+  } else if(sheet==='attach'){
+    inner=`<h2>Anhang hinzufügen</h2>
+    <div class="seg" role="group" style="align-self:flex-start"><button data-tab="docs" aria-pressed="${sheetTab==='docs'}">Fact Sheets & PDFs</button><button data-tab="imgs" aria-pressed="${sheetTab==='imgs'}">Loft-Bilder</button></div>
+    ${sheetTab==='docs'?`<div class="notion" style="margin-top:8px"><i></i>Mit Notion synchronisiert · heute 06:00. Preise änderst du nur dort.</div>
+    <div class="doclist" style="margin-top:6px">${DOCS.map(d=>`<button class="doc" data-pick="${d.id}" aria-pressed="${pick.includes(d.id)}"><span class="ic">PDF</span><span><b>${d.name}</b><small>${d.meta}</small></span><span class="ck">✓</span></button>`).join('')}</div>`:
+    `<div class="imgs" style="margin-top:8px">${IMGS.map(d=>`<button class="img" data-pick="${d.id}" aria-pressed="${pick.includes(d.id)}" aria-label="${d.name}"><span class="ph" style="background:${d.bg}"></span><span>${d.name}</span><b class="ck">${pick.includes(d.id)?'✓':''}</b></button>`).join('')}</div><p class="hint">Platzhalter. In der echten Version deine Fotos aus einem festen Ordner.</p>`}
+    <button class="sbtn" id="applyatt">${pick.length?`${pick.length} anhängen`:'Fertig'}</button>`;
+  } else if(sheet==='more'&&t){
+    const o=(attr,v,on,label,dot)=>`<button class="opt" data-${attr}="${v}" aria-pressed="${on}">${dot?`<span class="d" style="--c:${dot}"></span>`:''}${label}</button>`;
+    inner=`<h2>Anfrage</h2>
+    <h3>Markierung</h3><div class="opts">${Object.keys(COLORS).map(c=>o('c',c,t.color===c,COLOR_NAMES[c],COLORS[c])).join('')}${o('c','none',!t.color,'Keine')}</div>
+    <h3>Studio</h3><div class="opts">${o('s','P',t.studio==='P','Penthouse')}${o('s','F',t.studio==='F','Factory')}${o('s','X',t.studio==='X','Nicht festgelegt')}</div>
+    <h3>Priorität</h3><div class="opts">${['hoch','normal','niedrig'].map(p=>o('p',p,t.prio===p,p[0].toUpperCase()+p.slice(1))).join('')}</div>
+    <button class="sbtn sec" id="done">${t.status==='abgeschlossen'?'Wieder öffnen':'Abschließen'}</button>
+    <button class="sbtn danger" id="spam" style="margin-top:6px">${t.status==='spam'?'Kein Spam':'Als Spam markieren'}</button>`;
+  }
+  return `<div class="scrim" id="scrim"><div class="sheet" role="dialog"><div class="grab"></div>${inner}</div></div>`;
+}
+function statsHTML(){
+  const real=threads.filter(t=>t.status!=='spam');
+  const cats={}; real.forEach(t=>cats[t.cat]=(cats[t.cat]||0)+1);
+  const cmax=Math.max(...Object.values(cats));
+  const f=real.filter(t=>t.studio==='F').length,p=real.filter(t=>t.studio==='P').length,x=real.filter(t=>t.studio==='X').length;
+  const resp=threads.filter(t=>t.resp); const avg=Math.round(resp.reduce((a,t)=>a+t.resp,0)/resp.length);
+  const open=real.filter(t=>t.status==='offen').length, booked=real.filter(t=>t.status==='gebucht').length;
+  const pct=n=>Math.round(n/real.length*100);
+  const buckets=[['unter 1 h',0,60,'var(--green)'],['1 bis 4 h',60,240,'var(--orange)'],['über 4 h',240,1e9,'var(--red)']];
+  const stc={offen:'var(--orange)',beantwortet:'var(--primary)',gebucht:'var(--green)',abgeschlossen:'var(--mute)'};
+  return `<div class="sinner"><h1>Statistik</h1><p class="sub">Letzte 30 Tage · Beispieldaten</p>
+  <div class="kpis"><div class="kpi k1"><div class="v">${real.length}</div><div class="l">Anfragen</div></div><div class="kpi k2"><div class="v">${open}</div><div class="l">offen</div></div><div class="kpi"><div class="v">${fmtDur(avg)}</div><div class="l">Ø erste Antwort</div></div><div class="kpi k4"><div class="v">${pct(booked)} %</div><div class="l">gebucht</div></div></div>
+  <div class="cards">
+   <div class="card"><h3>Welches Studio wird angefragt</h3><div class="split"><i style="flex:${p};background:var(--primary)"></i><i style="flex:${f};background:var(--ai)"></i><i style="flex:${x};background:var(--line)"></i></div>
+    <div class="legend"><div><span class="lg" style="background:var(--primary)"></span>Penthouse Loft<span class="num">${p} · ${pct(p)} %</span></div><div><span class="lg" style="background:var(--ai)"></span>Factory Loft<span class="num">${f} · ${pct(f)} %</span></div><div><span class="lg" style="background:var(--line)"></span>Nicht festgelegt<span class="num">${x} · ${pct(x)} %</span></div></div></div>
+   <div class="card"><h3>Was angefragt wird</h3>${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="bar"><span>${k}</span><span class="track"><i style="width:${v/cmax*100}%"></i></span><span class="num">${v}</span></div>`).join('')}</div>
+   <div class="card"><h3>Status</h3>${Object.keys(stc).map(s=>{const n=real.filter(t=>t.status===s).length;return `<div class="bar"><span>${ST_LABEL[s]}</span><span class="track"><i style="width:${n/real.length*100}%;background:${stc[s]}"></i></span><span class="num">${n}</span></div>`}).join('')}</div>
+   <div class="card"><h3>Erste Antwort</h3>${buckets.map(([l,a,b,c])=>{const n=resp.filter(t=>t.resp>=a&&t.resp<b).length;return `<div class="bar"><span>${l}</span><span class="track"><i style="width:${n/resp.length*100}%;background:${c}"></i></span><span class="num">${n}</span></div>`}).join('')}</div>
+   <div class="card" style="grid-column:1/-1"><h3>Prioritäts-Regeln</h3><ul class="rules"><li>Termin in den nächsten 7 Tagen<b class="hot">Dringend</b></li><li>Rückfrage zu bestehender Buchung<b class="hot">Dringend</b></li><li>Stammkunde erkannt<b style="color:var(--violet)">Lila</b></li><li>Werbung, SEO, gefälschte Mahnungen<b class="hot">Spam</b></li><li>Länger als 12 h ohne Antwort<b style="color:var(--orange)">Warnung</b></li><li>Angebot 3 Tage ohne Rückmeldung<b style="color:var(--primary)">Nachfassen</b></li></ul></div>
+  </div></div>`;
+}
+function toast(s){const e=document.getElementById('toast');e.textContent=s;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2400);}
+function scrollMsgs(){const ms=document.getElementById('dscroll');if(ms)ms.scrollTop=ms.scrollHeight;}
+function scrollTop(){const ms=document.getElementById('dscroll');if(ms)ms.scrollTop=0;}
+function customerReplies(t,f){
+  t.typing=false;t.step=(t.step||0)+1;if(f===GENERIC)t.genericDone=true;
+  const at=tick(11);t.msgs.push({d:'in',t:at,x:f.x});t.at=at;t.summary=f.sum;drafts[t.id]=null;variantIdx=0;
+  if(f.req)t.req=f.req;
+  if(f.final){t.status=f.final.status;if(f.final.color!==undefined)t.color=f.final.color;syncBookingOnFinal(t);}else t.status='offen';
+  if(currentId!==t.id)t.unread=true;
+  toast(`Neue Antwort von ${first(t)}${t.status==='gebucht'?' · gebucht':''}`);
+  if(view==='inbox'&&!sheet){render();scrollMsgs();}
+}
+function newInquiry(){
+  const n=NEW[newIdx%NEW.length];newIdx++;const at=tick(9);
+  const t={id:nextId++,name:n.name,email:n.email,subject:n.subject,studio:n.studio,cat:n.cat,prio:n.prio,color:n.color||null,status:n.cat==='Spam'?'spam':'offen',req:n.req,spam:n.spam,star:false,unread:true,at,summary:n.summary,sig:n.sig||n.name,msgs:[{d:'in',t:at,x:n.x}]};
+  threads.push(t);
+  toast(t.status==='spam'?`Spam erkannt (${n.spam} %) und aussortiert`:`Neue Anfrage · ${STUDIO[t.studio]} · ${t.cat}${t.prio==='hoch'?' · Dringend':''}`);
+  render();
+}
+function openThread(id){currentId=id;variantIdx=0;threads.find(x=>x.id===id).unread=false;document.body.classList.add('open');render();scrollTop();}
+document.addEventListener('click',e=>{
+  if(e.target.id==='scrim'){sheet=null;render();return;}
+  const b=e.target.closest('button'); if(!b) return;
+  if(calClick(b)) return;
+  if(contactsClick(b)) return;
+  if(setClick(b)) return;
+  const t=threads.find(x=>x.id===currentId);
+  if(b.dataset.view){view=b.dataset.view;sheet=null;if(view!=='contacts'){document.body.classList.remove('copen');}render();return;}
+  if(b.dataset.f){filter=b.dataset.f;page=0;render();return;}
+  if(b.id==='selmode'){selMode=!selMode;selected.clear();render();return;}
+  if(b.dataset.sel){const id=+b.dataset.sel;selected.has(id)?selected.delete(id):selected.add(id);renderList();return;}
+  if(b.id==='selall'){const ids=[...document.querySelectorAll('[data-sel]')].map(x=>+x.dataset.sel);const all=ids.every(i=>selected.has(i));ids.forEach(i=>all?selected.delete(i):selected.add(i));renderList();return;}
+  if(b.id==='selevery'){const q=query.trim();const pool=q.startsWith('@')?askAnswer(q).res:q?baseList().filter(t=>tokens(q).every(k=>hay(t).includes(k))):baseList().filter(statusF()).filter(TFIL[tfil].f);pool.forEach(t=>selected.add(t.id));renderList();return;}
+  if(b.dataset.bulk){const k=b.dataset.bulk,n=selected.size;selected.forEach(id=>{const t=threads.find(x=>x.id===id);if(!t)return;if(k==='spam'){t.status='spam';t.spam=t.spamRisk||100;}else if(k==='nospam'){if(t.status==='spam')t.status='offen';t.spamRisk=0;}else t.status=k;});selected.clear();selMode=false;toast(`${n} ${n===1?'Anfrage':'Anfragen'}: ${{offen:'als offen markiert',abgeschlossen:'erledigt',spam:'in Spam verschoben',nospam:'kein Spam'}[k]}`);render();return;}
+  if(b.dataset.ps){pageSize=+b.dataset.ps;page=0;renderList();return;}
+  if(b.dataset.pg){page=Math.max(0,page+ +b.dataset.pg);renderList();document.getElementById('rows').scrollTop=0;return;}
+  if(b.dataset.tf){tfil=tfil===b.dataset.tf?'alle':b.dataset.tf;page=0;render();return;}
+  if(b.dataset.ask){query=b.dataset.ask;page=0;render();return;}
+  if(b.id==='clr'){query='';render();return;}
+  if(b.id==='newinq'){newInquiry();return;}
+  if(b.id==='openfilter'){sheet='filter';render();return;}
+  if(b.dataset.flt){const k=b.dataset.flt,v=k==='range'?+b.dataset.val:b.dataset.val;flt[k]=flt[k]===v?null:v;render();return;}
+  if(b.id==='resetflt'){flt={studio:null,cat:null,color:null,range:null};render();return;}
+  if(b.id==='closesheet'){sheet=null;render();return;}
+  if(b.dataset.id){sheet=null;openThread(+b.dataset.id);return;}
+  if(b.id==='back'){document.body.classList.remove('open');render();return;}
+  if(!t) return;
+  if(b.dataset.mv){mailView=b.dataset.mv;render();return;}
+  if(b.dataset.exp){expanded[b.dataset.exp]=true;render();return;}
+  if(b.dataset.q){quoteOpen[b.dataset.q]=!quoteOpen[b.dataset.q];const s=document.getElementById('dscroll').scrollTop;render();document.getElementById('dscroll').scrollTop=s;return;}
+  if(b.id==='more'){sheet='more';render();return;}
+  if(b.id==='openatt'){sheet='attach';pick=[...(attach[t.id]||[])];render();return;}
+  if(b.dataset.tab){sheetTab=b.dataset.tab;render();return;}
+  if(b.dataset.pick){const id=b.dataset.pick;pick=pick.includes(id)?pick.filter(x=>x!==id):[...pick,id];render();return;}
+  if(b.id==='applyatt'){attach[t.id]=pick;sheet=null;keepDraft();render();return;}
+  if(b.dataset.addatt){attach[t.id]=[...(attach[t.id]||[]),b.dataset.addatt];keepDraft();render();return;}
+  if(b.dataset.rm){attach[t.id]=(attach[t.id]||[]).filter(x=>x!==b.dataset.rm);keepDraft();render();return;}
+  if(b.dataset.c){t.color=b.dataset.c==='none'?null:b.dataset.c;render();return;}
+  if(b.dataset.s){t.studio=b.dataset.s;render();return;}
+  if(b.dataset.p){t.prio=b.dataset.p;render();return;}
+  if(b.id==='star'){t.star=!t.star;render();return;}
+  if(b.id==='done'){t.status=t.status==='abgeschlossen'?'offen':'abgeschlossen';sheet=null;toast(t.status==='abgeschlossen'?'Abgeschlossen':'Wieder geöffnet');render();return;}
+  if(b.id==='spam'){t.status=t.status==='spam'?'offen':'spam';t.spam=t.spam||100;sheet=null;toast(t.status==='spam'?'Als Spam markiert':'Zurück in Anfragen');render();return;}
+  if(b.dataset.v!=null){variantIdx=+b.dataset.v;drafts[t.id]=draftsFor(t)[variantIdx][1];render();return;}
+  if(b.dataset.i){const ta=document.getElementById('draft');drafts[t.id]=improve(b.dataset.i,ta.value);ta.value=drafts[t.id];return;}
+  if(b.id==='send'){const txt=document.getElementById('draft').value.trim();if(!txt){toast('Die Antwort ist leer.');return;}
+    const sentAt=tick(4), att=(attach[t.id]||[]).map(docName);
+    t.msgs.push({d:'out',t:sentAt,x:txt,att:att.length?att:undefined});attach[t.id]=[];
+    if(t.status==='offen'){t.status='beantwortet';t.resp=t.resp||Math.max(1,Math.round((sentAt-lastIn(t).t)/6e4));}
+    if(t.color==='rot')t.color='orange';t.at=sentAt;drafts[t.id]=null;variantIdx=0;
+    toast('Gesendet · Demo, keine echte E-Mail');
+    const list=FOLLOW[t.id]||[], f=list[t.step||0]||(t.genericDone?null:GENERIC);
+    if(f){t.typing=true;setTimeout(()=>customerReplies(t,f),2600);}
+    render();scrollMsgs();}
+});
+function keepDraft(){const ta=document.getElementById('draft');if(ta)drafts[currentId]=ta.value;}
+document.addEventListener('input',e=>{
+  if(e.target.id==='draft')drafts[currentId]=e.target.value;
+  if(e.target.id==='q'){query=e.target.value;page=0;document.getElementById('rows').innerHTML=rowsHTML();document.getElementById('asks').hidden=!!query;document.getElementById('clr').hidden=!query;}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sheet){sheet=null;render();}});
+if(matchMedia('(min-width:761px)').matches) currentId=1;
+render();
+</script>
