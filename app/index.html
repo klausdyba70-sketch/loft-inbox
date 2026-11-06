@@ -948,6 +948,18 @@ span.mtile{cursor:default}
 /* aktive Anfrage in der Liste deutlich */
 .row[aria-current="true"]{background:var(--primary-soft)!important;border:2px solid var(--primary)!important;box-shadow:0 4px 14px color-mix(in srgb,var(--primary) 22%,transparent)!important}
 .row[aria-current="true"] .r1 b,.row[aria-current="true"] .r2{color:var(--ink)!important}
+
+.costgrid small+b+small{font-size:11.5px}
+.costdays{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:4px;height:90px;align-items:end;padding:4px 0 12px}
+.costdays span{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:3px;min-width:0}
+.costdays i{display:block;width:100%;max-width:18px;background:var(--primary);border-radius:4px 4px 2px 2px;opacity:.85}
+.costdays small{font-size:10px;color:var(--mute)}
+.costh{margin:6px 0 4px;font-size:12px;font-weight:700;color:var(--mute);letter-spacing:.04em;text-transform:uppercase}
+.costtab{display:flex;flex-direction:column;margin-bottom:8px;overflow-x:auto}
+.costtab>div{display:grid;grid-template-columns:minmax(120px,1.6fr) 70px minmax(110px,1fr) 90px;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px;align-items:baseline;min-width:420px}
+.costtab>div.ch{font-size:11.5px;color:var(--mute);font-weight:600;padding-top:0}
+.costtab>div>span:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.costtab b{font-weight:600}.costtab small{display:block;font-size:11.5px;color:var(--mute)}
 </style>
 </head>
 <body data-view="auth">
@@ -1100,7 +1112,7 @@ function appShell() {
    <nav class="rail" aria-label="Bereiche"><div class="logo" aria-hidden="true">L</div>
     <button class="nav" data-view="inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>Anfragen<span class="cnt" id="navcnt" hidden></span></button>
     <button class="nav" data-view="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="9" cy="14.5" r="1" fill="currentColor"/><circle cx="15" cy="14.5" r="1" fill="currentColor"/></svg>Kalender</button>
-    <button class="nav navicon" data-view="set" aria-label="Einstellungen" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></button>
+    <button class="nav navicon" data-view="set" aria-label="Einstellungen" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
    </nav>
    <aside class="pane list" id="list"></aside><section class="pane detail" id="detail"></section><section class="pane set" id="set"></section><section class="pane cal" id="cal"></section></div>`;
   view = location.hash.startsWith('#einstellungen') ? 'set' : location.hash.startsWith('#kalender') ? 'cal' : 'inbox';
@@ -1306,31 +1318,27 @@ function fillFirst(t) {
   if (d && !drafts[t.id]) { drafts[t.id] = d.body; curVar[t.id] = d.position; }
 }
 async function streamDraft(t, k, opts = {}) {
+  // Die KI schreibt im Hintergrund (keine Zeitgrenze), die App liest den Fortschritt laufend mit
   const { data } = await sb.auth.getSession();
-  const r = await fetch('/api/ai/draft', { method: 'POST', headers: { authorization: 'Bearer ' + data.session.access_token, 'content-type': 'application/json' }, body: JSON.stringify({ threadId: t.id, variant: k, stream: true, ...opts }) });
-  if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error(j.error || (r.status >= 500 ? 'Die KI hat zu lange gebraucht. Bitte nochmal versuchen.' : 'Fehler ' + r.status)); }
-  const pos = VARS.indexOf(k), reader = r.body.getReader(), dec = new TextDecoder();
-  let raw = '';
-  const entry = { position: pos, label: '…', body: '', based_on: r.headers.get('x-draft-based-on') };
+  const reqId = Date.now() + '-' + Math.random().toString(36).slice(2, 8), key = 'draft:' + t.id;
+  const r = await fetch('/api/ai/draft-run', { method: 'POST', headers: { authorization: 'Bearer ' + data.session.access_token, 'content-type': 'application/json' }, body: JSON.stringify({ threadId: t.id, variant: k, reqId, ...opts }) });
+  if (!r.ok) throw new Error('Die KI konnte nicht gestartet werden (Fehler ' + r.status + ').');
+  const pos = VARS.indexOf(k);
+  const entry = { position: pos, label: VLABEL[k], body: '', based_on: null };
   aiDrafts[t.id] = [...(aiDrafts[t.id] || []).filter((x) => x.position !== pos), entry].sort((a, b) => a.position - b.position);
+  const started = Date.now();
   for (;;) {
-    const { value, done } = await reader.read(); if (done) break;
-    raw += dec.decode(value, { stream: true });
-    const err = raw.match(/\[\[FEHLER: ([\s\S]*?)\]\]/);
-    if (err) { // Server konnte nicht speichern: Text, der schon da ist, behalten und selbst speichern
-      if (entry.body.trim().length > 40) { entry.body = entry.body.trim(); await sb.from('drafts').delete().eq('thread_id', t.id).eq('position', pos); await sb.from('drafts').insert({ thread_id: t.id, label: entry.label === '…' ? VLABEL[k] : entry.label, body: entry.body, position: pos, based_on: entry.based_on }); console.warn('Entwurf lokal gespeichert:', err[1]); break; }
-      throw new Error(err[1]);
-    }
-    const m = raw.match(/^\s*(?:LABEL|Label|Ansatz)\s*:\s*(.+)\n+/);
-    const label = m ? m[1].replace(/[*"]/g, '').trim() : VLABEL[k];
-    const maybeLabel = /^\s*(L|LA|LAB|LABE|LABEL)$/i.test(raw.slice(0, 6).trim()) || (/^\s*LABEL/i.test(raw) && !m);
-    const body = (m ? raw.slice(m[0].length) : maybeLabel ? '' : raw).replace(/\s+—\s+|\s+–\s+/g, ', ');
-    const prevBody = entry.body; entry.label = label.slice(0, 30); entry.body = body;
-    // Wort für Wort ins Antwortfeld, solange dieser Vorschlag gewählt ist und du nichts geändert hast
+    await new Promise((res) => setTimeout(res, 700));
+    if (Date.now() - started > 150000) throw new Error('Die KI hat nicht rechtzeitig geantwortet. Bitte nochmal versuchen.');
+    const { data: row } = await sb.from('sync_state').select('value').eq('key', key).maybeSingle();
+    const v = row?.value; if (!v || v.reqId !== reqId) continue;
+    if (v.status === 'error') throw new Error(v.error || 'KI-Fehler');
+    const body = String(v.text || '').replace(/\s+—\s+|\s+–\s+/g, ', ');
+    const prevBody = entry.body; entry.body = body; if (v.based_on) entry.based_on = v.based_on;
     if (current?.id === t.id && (curVar[t.id] ?? 0) === pos) { const ta = $('#draft'); if (ta && (ta.value === prevBody || !ta.value)) { ta.value = body; drafts[t.id] = body; } }
-    if (current?.id === t.id && label !== '…') { const btn = document.querySelector(`.dvseg [data-pos="${pos}"]`); if (btn) btn.textContent = entry.label; }
+    if (v.status === 'done') break;
   }
-  entry.body = entry.body.replace(/\n?\[\[FEHLER:[\s\S]*$/, '').trim(); if (!entry.body) throw new Error('Die Verbindung wurde beendet, bevor Text kam. Bitte nochmal versuchen.');
+  entry.body = entry.body.trim(); if (!entry.body) throw new Error('Die KI hat keinen Text geliefert. Bitte nochmal versuchen.');
   if ((curVar[t.id] ?? 0) === pos && (!drafts[t.id] || drafts[t.id].trim() === entry.body)) { drafts[t.id] = entry.body; saveDrafts(); }
 }
 async function genDrafts(t) {
@@ -1737,22 +1745,33 @@ async function fillCostCard2() {
   const now = new Date(), m0 = new Date(now.getFullYear(), now.getMonth(), 1), p0 = new Date(now.getFullYear(), now.getMonth() - 1, 1), d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const rows = [];
   for (let from = 0; from < 50000; from += 1000) {
-    const { data, error } = await sb.from('ai_usage').select('at,kind,model,cost_usd,input,output,cache_read').gte('at', p0.toISOString()).order('at', { ascending: false }).range(from, from + 999);
+    const { data, error } = await sb.from('ai_usage').select('at,kind,model,cost_usd,input,output,cache_write,cache_read').gte('at', p0.toISOString()).order('at', { ascending: false }).range(from, from + 999);
     if (error) { c.innerHTML = `<h3>KI-Kosten</h3><div class="srow"><div class="stx"><b>Noch nicht eingerichtet</b><small class="errline">Erst die SQL-Datei 20261106000005_ai_usage.sql in Supabase ausführen.</small></div></div>`; return; }
     rows.push(...data); if (data.length < 1000) break;
   }
-  const sum = (f) => rows.filter(f).reduce((a, r) => a + Number(r.cost_usd || 0), 0);
+  const cost = (r) => Number(r.cost_usd || 0);
+  const sum = (list) => list.reduce((a, r) => a + cost(r), 0);
   const fmt = (v) => v < 1 ? (v * 100).toLocaleString('de-DE', { maximumFractionDigits: v < 0.01 ? 2 : 1 }) + ' Cent' : v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $';
-  const inM = (r) => new Date(r.at) >= m0, inP = (r) => new Date(r.at) >= p0 && new Date(r.at) < m0;
-  const month = rows.filter(inM), kinds = {};
-  for (const r of month) { const k = r.kind || 'sonstiges'; kinds[k] = kinds[k] || { n: 0, v: 0 }; kinds[k].n++; kinds[k].v += Number(r.cost_usd || 0); }
-  const ans = kinds['Antwort'];
-  const days = now.getDate(), monthV = sum(inM), proj = (monthV / days) * new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const tok = (n) => n >= 1e6 ? (n / 1e6).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' Mio.' : n >= 1000 ? Math.round(n / 1000).toLocaleString('de-DE') + ' Tsd.' : String(n);
+  const mname = (m) => /sonnet/.test(m) ? 'Sonnet' : /opus/.test(m) ? 'Opus' : /haiku/.test(m) ? 'Haiku' : m;
+  const month = rows.filter((r) => new Date(r.at) >= m0), prev = rows.filter((r) => new Date(r.at) >= p0 && new Date(r.at) < m0), today = rows.filter((r) => new Date(r.at) >= d0);
+  const monthV = sum(month), proj = (monthV / now.getDate()) * new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const group = (list, keyf) => { const g = {}; for (const r of list) { const k = keyf(r); const x = g[k] = g[k] || { n: 0, v: 0, i: 0, o: 0, cr: 0, cw: 0 }; x.n++; x.v += cost(r); x.i += r.input || 0; x.o += r.output || 0; x.cr += r.cache_read || 0; x.cw += r.cache_write || 0; } return Object.entries(g).sort((a, b) => b[1].v - a[1].v); };
+  const byModel = group(month, (r) => mname(r.model)), byKind = group(month, (r) => r.kind || 'sonstiges');
+  // letzte 14 Tage
+  const days = []; for (let i = 13; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i), d2 = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1); days.push({ d, v: sum(rows.filter((r) => new Date(r.at) >= d && new Date(r.at) < d2)) }); }
+  const maxV = Math.max(...days.map((x) => x.v), 1e-9);
+  const curModel = byModel[0]?.[0];
   c.innerHTML = `<h3>KI-Kosten</h3>
-   <div class="costgrid"><div><small>Heute</small><b>${fmt(sum((r) => new Date(r.at) >= d0))}</b></div><div><small>${now.toLocaleDateString('de-DE', { month: 'long' })}</small><b>${fmt(monthV)}</b></div><div><small>Hochgerechnet</small><b>${fmt(proj)}</b></div><div><small>${p0.toLocaleDateString('de-DE', { month: 'long' })}</small><b>${fmt(sum(inP))}</b></div></div>
-   ${Object.keys(kinds).length ? `<div class="costkinds">${Object.entries(kinds).sort((a, b) => b[1].v - a[1].v).map(([k, x]) => `<div><span>${esc(k)}</span><small>${x.n}×</small><b>${fmt(x.v)}</b></div>`).join('')}</div>` : '<p class="hint2">Noch keine KI-Aufrufe in diesem Monat.</p>'}
-   <p class="hint2">${ans ? `Eine Antwort kostet im Schnitt ${fmt(ans.v / ans.n)}. ` : ''}Berechnet aus den Token-Zahlen jedes Aufrufs mit den Listenpreisen von Anthropic in US-Dollar. Die Rechnung von Anthropic ist maßgeblich.</p>`;
+   <div class="costgrid"><div><small>Heute</small><b>${fmt(sum(today))}</b><small>${today.length} Aufrufe</small></div><div><small>${now.toLocaleDateString('de-DE', { month: 'long' })}</small><b>${fmt(monthV)}</b><small>${month.length} Aufrufe</small></div><div><small>Hochgerechnet</small><b>${fmt(proj)}</b><small>bis Monatsende</small></div><div><small>${p0.toLocaleDateString('de-DE', { month: 'long' })}</small><b>${fmt(sum(prev))}</b><small>${prev.length} Aufrufe</small></div></div>
+   <div class="costdays" role="img" aria-label="Kosten der letzten 14 Tage">${days.map((x) => `<span title="${x.d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' })}: ${fmt(x.v)}"><i style="height:${Math.max(2, Math.round((x.v / maxV) * 100))}%"></i><small>${x.d.getDate()}.</small></span>`).join('')}</div>
+   ${month.length ? `<h4 class="costh">Nach Modell, diesen Monat</h4>
+   <div class="costtab"><div class="ch"><span>Modell</span><span>Aufrufe</span><span>Tokens ein / aus</span><span>Kosten</span></div>${byModel.map(([k, x]) => `<div><span><b>${esc(k)}</b><small>${k === 'Sonnet' ? 'schreibt die Antworten' : k === 'Haiku' ? 'Einstufen, Zusammenfassung, Fragen' : ''}</small></span><span>${x.n}</span><span>${tok(x.i + x.cr + x.cw)} / ${tok(x.o)}</span><span>${fmt(x.v)}</span></div>`).join('')}</div>
+   <h4 class="costh">Nach Art, diesen Monat</h4>
+   <div class="costtab"><div class="ch"><span>Art</span><span>Aufrufe</span><span>Ø pro Aufruf</span><span>Kosten</span></div>${byKind.map(([k, x]) => `<div><span><b>${esc(k)}</b></span><span>${x.n}</span><span>${fmt(x.v / x.n)}</span><span>${fmt(x.v)}</span></div>`).join('')}</div>` : '<p class="hint2">Noch keine KI-Aufrufe in diesem Monat.</p>'}
+   <p class="hint2">Gerechnet mit den Listenpreisen von Anthropic in US-Dollar aus den Token-Zahlen jedes Aufrufs. Zwischengespeicherte FAQ-Tokens sind deutlich günstiger und hier mit eingerechnet. Maßgeblich ist die Rechnung von Anthropic.</p>`;
 }
+
 async function fillCalCard() {
   const today = isoOf(new Date()), k = today.slice(0, 7);
   await ensureCal([k]);
