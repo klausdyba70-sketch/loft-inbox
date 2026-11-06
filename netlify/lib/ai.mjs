@@ -15,11 +15,12 @@ const BASE_FACTS = `Loft Studio Cologne, Köln. Zwei Mietstudios:
 - Keine Vorauszahlung, die Rechnung kommt nach der Miete. Eigenes Catering ist möglich.
 - Equipment wird nicht vermietet, C-Stands kostenfrei auf Anfrage.`;
 
-export async function claude({ model = MODEL_FAST, system, prompt, max_tokens = 1000 }) {
+export async function claude({ model = MODEL_FAST, system, prompt, max_tokens = 1000, timeoutMs = 25000 }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error('ANTHROPIC_API_KEY fehlt in Netlify'), { status: 409 });
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
+    signal: AbortSignal.timeout(timeoutMs),
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({ model, max_tokens, system, messages: [{ role: 'user', content: prompt }] }),
   });
@@ -77,9 +78,22 @@ export async function refreshKnowledge(db, force = false) {
     return { ok: false, reason: e.message };
   }
 }
-async function knowledge(db) {
+// Nur die zum Verlauf passenden Abschnitte mitschicken: schneller und günstiger
+function relevant(text, focus, max = 9000) {
+  if (text.length <= max) return text;
+  const lines = text.split('\n'), chunks = [];
+  let cur = '';
+  for (const l of lines) { if (cur.length > 500 && (l.startsWith('#') || /^(frage|q:|\*\*)/i.test(l) || cur.length > 900)) { chunks.push(cur); cur = ''; } cur += l + '\n'; }
+  if (cur) chunks.push(cur);
+  const words = new Set((focus.toLowerCase().match(/[a-zäöüß]{4,}/g) || []));
+  const scored = chunks.map((c, i) => { const w = c.toLowerCase().match(/[a-zäöüß]{4,}/g) || []; let sc = 0; for (const x of w) if (words.has(x)) sc++; return { c, i, sc: sc / Math.sqrt(w.length + 5) + (i === 0 ? 1 : 0) }; });
+  const pick = []; let len = 0;
+  for (const s of scored.sort((a, b) => b.sc - a.sc)) { if (len + s.c.length > max) continue; pick.push(s); len += s.c.length; }
+  return pick.sort((a, b) => a.i - b.i).map((s) => s.c).join('…\n');
+}
+async function knowledge(db, focus = '') {
   const { data } = await db.from('knowledge').select('content').limit(5);
-  const notion = (data || []).map((r) => r.content).join('\n\n').slice(0, 40000);
+  const notion = relevant((data || []).map((r) => r.content).join('\n\n'), focus);
   return notion ? `${BASE_FACTS}\n\nAktuelle Infos aus Notion (diese gelten vorrangig, auch für Preise):\n${notion}` : BASE_FACTS;
 }
 
@@ -151,7 +165,8 @@ async function styleSamples(db, threadId) {
 }
 export async function draftVariant(db, threadId, variantKey) {
   const v = VARIANTS.find((x) => x.key === variantKey) || VARIANTS[0];
-  const [{ t, msgs }, st, kb, samples] = await Promise.all([loadThread(db, threadId), settingsRow(db), knowledge(db), styleSamples(db, threadId)]);
+  const [{ t, msgs }, st, samples] = await Promise.all([loadThread(db, threadId), settingsRow(db), styleSamples(db, threadId)]);
+  const kb = await knowledge(db, t.subject + ' ' + msgs.slice(-4).map((m) => m.body_text || '').join(' '));
   const lastIn = [...msgs].reverse().find((m) => m.direction === 'in');
   if (!lastIn) throw Object.assign(new Error('Keine Kundenmail zum Beantworten'), { status: 409 });
   const system = `Du schreibst E-Mail-Antworten für Klaus von Loft Studio Cologne. Deutsch, natürlich, freundlich und klar, wie ein Mensch, nicht wie ein Callcenter.
@@ -174,7 +189,7 @@ ${convoText(msgs)}
 
 ${samples.length ? 'So klingen Klaus’ bisherige Antworten (nur Ton übernehmen, keine Inhalte):\n' + samples.map((s, i) => `--- Beispiel ${i + 1} ---\n${s}`).join('\n') + '\n\n' : ''}Schreibe EINE Antwort im Stil: ${v.hint}
 Antworte nur mit JSON: {"label":"2 bis 3 Wörter, die den Ansatz benennen","body":"vollständiger Mailtext"}`;
-  const r = parseJson(await claude({ model: MODEL_WRITE, system, prompt, max_tokens: 900 }));
+  const r = parseJson(await claude({ model: MODEL_WRITE, system, prompt, max_tokens: 700, timeoutMs: 9000 }));
   const body = String(r.body || '').replace(/\s+—\s+|\s+–\s+/g, ', ').trim();
   const label = String(r.label || v.key).slice(0, 30);
   const position = VARIANTS.indexOf(v);

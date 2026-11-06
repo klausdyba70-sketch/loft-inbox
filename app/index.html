@@ -770,6 +770,8 @@ mark{background:#f1dfa6}
 .mail.typing{display:flex;align-items:center;gap:8px;padding:12px 14px;color:var(--mute);font-size:13.5px}
 @media (prefers-reduced-motion:reduce){.dots i{animation:none;opacity:.6}}
 .errline{display:block;color:var(--red)!important;margin-top:4px;font-weight:500}
+.verr{color:var(--red)!important}
+.aierr{font-size:12px;color:var(--red);background:var(--red-soft);border-radius:9px;padding:6px 10px}
 </style>
 </head>
 <body data-view="auth">
@@ -806,7 +808,7 @@ const MAILBOX = 'mail@loftstudiocologne.com';
 let sb, threads = [], current = null, msgs = [], view = 'inbox';
 let filter = 'alle', tfil = 'alle', query = '', msgHits = null, page = 0, pageSize = 25;
 let viewMode = {}, showImgs = {}, showQuote = {};
-let box = 'anfragen', testMode = false, aiDrafts = {}, aiBusy = {}, testTyping = {}, askRes = null, askBusy = false, aiOff = false, curVar = {};
+let aiErr = {}, box = 'anfragen', testMode = false, aiDrafts = {}, aiBusy = {}, testTyping = {}, askRes = null, askBusy = false, aiOff = false, curVar = {};
 try { testMode = localStorage.getItem('li-test') === '1'; } catch (e) {}
 const inScope = (t) => (testMode ? t.isTest : !t.isTest) && (box === 'sonstiges' ? t.kind === 'sonstiges' : t.kind !== 'sonstiges');
 const scoped = () => threads.filter(inScope);
@@ -1090,8 +1092,10 @@ function draftBarHTML(t) {
   if (aiOff) return '';
   const ds = aiDrafts[t.id] || [], busy = aiBusy[t.id];
   const cur = curVar[t.id] ?? 0;
-  const chips = VARS.map((k, i) => { const d = ds.find((x) => x.position === i); return `<button data-dv="${i}" aria-pressed="${!!d && cur === i}" ${d ? '' : 'disabled'}>${d ? esc(d.label) : busy ? '<span class="dots"><i></i><i></i><i></i></span>' : VLABEL[k]}</button>`; }).join('');
+  const err = aiErr[t.id];
+  const chips = VARS.map((k, i) => { const d = ds.find((x) => x.position === i); if (d) return `<button data-dv="${i}" aria-pressed="${cur === i}">${esc(d.label)}</button>`; if (busy) return `<button disabled><span class="dots"><i></i><i></i><i></i></span></button>`; if (err) return `<button data-dretry="${k}" class="verr" title="${esc(err)}">${VLABEL[k]} ↻</button>`; return `<button data-dretry="${k}">${VLABEL[k]}</button>`; }).join('');
   return `<div class="ctop"><span class="ailbl">${I.spark}KI</span><div class="seg dvseg" role="group" aria-label="Antwortvorschläge">${chips}</div><button class="mini" id="dregen" ${busy ? 'disabled' : ''} title="Neue Vorschläge">↻</button></div>
+   ${err && !busy ? `<div class="aierr">${esc(err)}</div>` : ''}
    <div class="refine">${REFINE.map(([l], i) => `<button data-rf="${i}">${l}</button>`).join('')}</div>`;
 }
 async function loadDrafts(t) {
@@ -1107,10 +1111,10 @@ function fillFirst(t) {
 }
 async function genDrafts(t) {
   if (aiBusy[t.id]) return;
-  aiBusy[t.id] = true; aiDrafts[t.id] = []; refreshDraftBar(t);
+  aiBusy[t.id] = true; aiDrafts[t.id] = []; aiErr[t.id] = null; refreshDraftBar(t);
   await Promise.all(VARS.map(async (k) => {
     try { const r = await api('/api/ai/draft', { threadId: t.id, variant: k }); aiDrafts[t.id] = [...(aiDrafts[t.id] || []).filter((x) => x.position !== r.draft.position), r.draft].sort((a, b) => a.position - b.position); fillFirst(t); }
-    catch (e) { if (/ANTHROPIC/.test(e.message)) aiOff = true; else console.warn(e); }
+    catch (e) { if (/ANTHROPIC/.test(e.message)) aiOff = true; else aiErr[t.id] = /^Fehler 50[24]/.test(e.message) ? 'Die KI hat zu lange gebraucht. Tippe auf einen Vorschlag, um es nochmal zu versuchen.' : e.message; }
     refreshDraftBar(t);
   }));
   aiBusy[t.id] = false; refreshDraftBar(t);
@@ -1393,6 +1397,7 @@ document.addEventListener('click', async (e) => {
   if (b.id === 'spam') { await patch(t, { status: t.status === 'spam' ? 'offen' : 'spam' }); sheet = null; toast(t.status === 'spam' ? 'Als Spam markiert' : 'Zurück in Anfragen'); render(); return; }
   if (b.dataset.dv) { const i = +b.dataset.dv, d = (aiDrafts[t.id] || []).find((x) => x.position === i); if (d) { curVar[t.id] = i; drafts[t.id] = d.body; saveDrafts(); redrawDetail(); } return; }
   if (b.id === 'dregen') { drafts[t.id] = ''; genDrafts(t); return; }
+  if (b.dataset.dretry) { const k = b.dataset.dretry; aiErr[t.id] = null; b.disabled = true; b.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>'; try { const r = await api('/api/ai/draft', { threadId: t.id, variant: k }); aiDrafts[t.id] = [...(aiDrafts[t.id] || []).filter((x) => x.position !== r.draft.position), r.draft].sort((a, b2) => a.position - b2.position); fillFirst(t); } catch (err) { aiErr[t.id] = err.message; } refreshDraftBar(t); return; }
   if (b.dataset.rf) { const ta = $('#draft'); const txt = (ta?.value || '').trim(); if (!txt) return toast('Erst einen Text wählen oder schreiben'); const [l, ins] = REFINE[+b.dataset.rf]; b.disabled = true; b.textContent = '…'; try { const r = await api('/api/ai/refine', { text: txt, instruction: ins }); drafts[t.id] = r.text; saveDrafts(); } catch (err) { toast(err.message); } redrawDetail(); return; }
   if (b.id === 'send') { sendReply('beantwortet'); return; }
   if (b.id === 'sendmenu') { sendMenu = !sendMenu; redrawDetail(); return; }

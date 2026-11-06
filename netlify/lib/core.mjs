@@ -41,7 +41,7 @@ export async function requireOwner(req) {
 
 export const guard = (fn) => async (req, ctx) => {
   try { return await fn(req, ctx); }
-  catch (e) { console.error(e); return json({ error: e.message || 'Fehler' }, e.status || 500); }
+  catch (e) { console.error(e); const to = e.name === 'TimeoutError' || e.name === 'AbortError'; return json({ error: to ? 'Die KI hat zu lange gebraucht. Bitte nochmal versuchen.' : e.message || 'Fehler' }, to ? 504 : e.status || 500); }
 };
 
 // ---------- Verschlüsselung (AES-256-GCM) ----------
