@@ -928,6 +928,9 @@ button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
 .costkinds{display:flex;flex-direction:column;gap:4px;padding-bottom:8px}
 .costkinds>div{display:flex;align-items:baseline;gap:8px;font-size:13.5px}
 .costkinds span{flex:1;min-width:0}.costkinds small{color:var(--mute);font-size:12px}.costkinds b{font-weight:600;min-width:70px;text-align:right}
+.row:not(:has(.mtile)){grid-template-columns:minmax(0,1fr)}
+.row.selm:not(:has(.mtile)){grid-template-columns:24px minmax(0,1fr)}
+span.mtile{cursor:default}
 </style>
 </head>
 <body data-view="auth">
@@ -980,11 +983,12 @@ applyTheme();
 const ini = (n) => n.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const avc = (n) => AV[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % AV.length];
 const avatar = (t, mk = true) => { const c = avc(t.name); return `<span class="av" style="background:color-mix(in srgb,${c} 16%,var(--surface));color:${c}">${esc(ini(t.name))}${mk && t.color ? `<span class="mk" style="--c:${COLORS[t.color]}"></span>` : ''}</span>`; };
-const markTile = (t) => !t.color && t.prio === 'hoch' && t.status === 'offen'
-  ? `<button class="mtile on" style="--mk:var(--red)" data-qmenu="${t.id}" title="Dringend · ändern" aria-label="Dringend, Markierung ändern"><b style="font-size:20px;line-height:1">!</b></button>`
-  : t.color
-  ? `<button class="mtile on" style="--mk:${COLORS[t.color]}" data-qmenu="${t.id}" title="${COLOR_NAMES[t.color]} · ändern" aria-label="Markierung ${COLOR_NAMES[t.color]} ändern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4h11l-2 4 2 4H6"/></svg></button>`
-  : `<button class="mtile" data-qmenu="${t.id}" title="Markierung setzen" aria-label="Markierung setzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 7v10M7 12h10"/></svg></button>`;
+// Wichtiges automatisch: dringend (Wunschtermin bald, von der KI erkannt) oder Angebot offen (nach "Angebot gesendet")
+const markTile = (t) => t.prio === 'hoch' && t.status === 'offen'
+  ? `<span class="mtile on" style="--mk:var(--red)" title="Dringend: Wunschtermin bald" aria-label="Dringend"><b style="font-size:20px;line-height:1">!</b></span>`
+  : t.color === 'orange' && t.status !== 'abgeschlossen'
+  ? `<span class="mtile on" style="--mk:var(--orange)" title="Angebot offen" aria-label="Angebot offen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h10l4 4v12H5z"/><path d="M14 4v5h5M8 13h8M8 17h5"/></svg></span>`
+  : '';
 const rowState = (t) => t.status === 'spam' ? 'spam' : t.status === 'abgeschlossen' ? 'closed' : t.status === 'offen' ? (t.unread ? 'neu' : 'todo') : 'done';
 const stateBadge = (t) => { const s = rowState(t); return s === 'neu' ? '<span class="sb sb-neu">Neu</span>' : s === 'todo' ? '<span class="sb sb-todo">Antworten</span>' : s === 'done' ? `<span class="sb sb-done">✓ ${ST_LABEL[t.status]}</span>` : stPill(t); };
 const stPill = (t) => `<span class="st st-${t.status}">${ST_LABEL[t.status]}</span>`;
@@ -1155,11 +1159,11 @@ function rowsHTML() {
     const w = waitingH(t), bk = bucket(t);
     const gh = grouped && bk[0] !== lastB ? `<div class="grp">${bk[1]}<span>${list.filter((x) => bucket(x)[0] === bk[0]).length}</span></div>` : ''; lastB = bk[0];
     const sel = selected.has(t.id), closed = t.status === 'abgeschlossen' && filter !== 'abgeschlossen';
-    return gh + `<div role="button" tabindex="0" style="${t.color ? `--mk:${COLORS[t.color]}` : ''}" class="row rs-${rowState(t)} ${t.color ? 'mk' : ''} ${t.unread ? 'unread' : ''} ${closed ? 'isclosed' : ''} ${selMode ? 'selm' : ''} ${sel ? 'sel' : ''}" ${selMode ? `data-sel="${t.id}"` : `data-id="${t.id}" aria-current="${current?.id === t.id}"`}>
+    return gh + `<div role="button" tabindex="0" style="${t.color === 'orange' ? `--mk:${COLORS.orange}` : ''}" class="row rs-${rowState(t)} ${t.color === 'orange' && t.status !== 'abgeschlossen' ? 'mk' : ''} ${t.unread ? 'unread' : ''} ${closed ? 'isclosed' : ''} ${selMode ? 'selm' : ''} ${sel ? 'sel' : ''}" ${selMode ? `data-sel="${t.id}"` : `data-id="${t.id}" aria-current="${current?.id === t.id}"`}>
      ${selMode ? `<span class="cbx ${sel ? 'on' : ''}">${sel ? '✓' : ''}</span>` : ''}${markTile(t)}
      <span class="rc"><span class="r1"><b>${esc(t.name)}</b>${t.star ? '<span class="star">★</span>' : ''}<time>${fmtT(t.at)}</time></span>
      <span class="r2">${esc(t.subject)}</span>
-     <span class="r3">${stateBadge(t)}${t.prio === 'hoch' && t.status === 'offen' && t.color !== 'rot' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color ? `<span class="mkc">${COLOR_NAMES[t.color]}</span>` : ''}${(t.spam || 0) >= 40 && t.status !== 'spam' ? `<span class="st st-spam">Spam? ${t.spam} %</span>` : ''}${t.studio !== 'X' || t.cat ? `<span>${t.studio !== 'X' ? STUDIO[t.studio].replace(' Loft', '') : ''}${t.studio !== 'X' && t.cat ? ' · ' : ''}${esc(t.cat || '')}</span>` : ''}${w > 12 ? `<span class="hot">· ${Math.round(w)} h</span>` : ''}</span></span>${selMode ? '' : `<span class="qa"><button class="qbtn2 ${t.star ? 'on' : ''}" data-qstar="${t.id}" title="Wichtig" aria-label="Wichtig">★</button><button class="qbtn2" data-qdone="${t.id}" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="Erledigt">✓</button><button class="qbtn2" data-qmenu="${t.id}" title="Zuweisen" aria-label="Zuweisen">•••</button></span>`}</div>`;
+     <span class="r3">${stateBadge(t)}${t.prio === 'hoch' && t.status === 'offen' && t.color !== 'rot' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color === 'orange' && t.status !== 'abgeschlossen' ? `<span class="mkc">${COLOR_NAMES.orange}</span>` : ''}${(t.spam || 0) >= 40 && t.status !== 'spam' ? `<span class="st st-spam">Spam? ${t.spam} %</span>` : ''}${t.studio !== 'X' || t.cat ? `<span>${t.studio !== 'X' ? STUDIO[t.studio].replace(' Loft', '') : ''}${t.studio !== 'X' && t.cat ? ' · ' : ''}${esc(t.cat || '')}</span>` : ''}${w > 12 ? `<span class="hot">· ${Math.round(w)} h</span>` : ''}</span></span>${selMode ? '' : `<span class="qa"><button class="qbtn2 ${t.star ? 'on' : ''}" data-qstar="${t.id}" title="Wichtig" aria-label="Wichtig">★</button><button class="qbtn2" data-qdone="${t.id}" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="Erledigt">✓</button><button class="qbtn2" data-qmenu="${t.id}" title="Zuweisen" aria-label="Zuweisen">•••</button></span>`}</div>`;
   }).join('');
   const pager = `<div class="pager"><span class="pinfo">${from + 1}–${from + shown.length} von ${total}</span><div class="seg psize" role="group" aria-label="Pro Seite">${[10, 25, 50, 100].map((n) => `<button data-ps="${n}" aria-pressed="${pageSize === n}">${n}</button>`).join('')}</div><span class="pnav"><button class="icon" data-pg="-1" aria-label="Vorherige Seite" ${page === 0 ? 'disabled' : ''}>${I.back}</button><span class="pnum">${page + 1}/${pages}</span><button class="icon flip" data-pg="1" aria-label="Nächste Seite" ${page >= pages - 1 ? 'disabled' : ''}>${I.back}</button></span></div>`;
   return pre + selbar + rows + pager;
@@ -1211,8 +1215,7 @@ function detailHTML() {
    <button class="icon" id="more" aria-label="Optionen">${I.more}</button><button class="icon xclose" id="closethr" aria-label="Anfrage schließen" title="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
   <div class="dscroll" id="dscroll"><div class="dinner">
    <h2>${esc(t.subject)}</h2>
-   <div class="mkrow" role="group" aria-label="Markierung">${`<button class="swb" data-prio="toggle" aria-pressed="${t.prio === 'hoch'}" title="Dringend" style="--c:var(--red)"><i></i><span>Dringend</span></button>`}${MARKS.map((c) => `<button class="swb" data-c="${c}" aria-pressed="${t.color === c}" title="${COLOR_NAMES[c]}" style="--c:${COLORS[c]}"><i></i><span>${COLOR_NAMES[c]}</span></button>`).join('')}${t.color ? '<button class="swb clear" data-c="none" title="Markierung entfernen">×</button>' : ''}</div>
-   <div class="pills">${stPill(t)}${t.prio === 'hoch' && t.status === 'offen' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color ? `<span class="pill"><span class="d" style="--c:${COLORS[t.color]}"></span>${COLOR_NAMES[t.color]}</span>` : ''}${t.studio !== 'X' ? `<span class="pill">${STUDIO[t.studio]}</span>` : ''}${t.cat ? `<span class="pill">${esc(t.cat)}</span>` : ''}</div>
+   <div class="pills">${stPill(t)}${t.prio === 'hoch' && t.status === 'offen' ? '<span class="st st-hot">Dringend</span>' : ''}${t.studio !== 'X' ? `<span class="pill">${STUDIO[t.studio]}</span>` : ''}${t.cat ? `<span class="pill">${esc(t.cat)}</span>` : ''}</div>
    ${t.summary ? `<div class="sum"><div class="ah">${I.spark}Zusammenfassung${t.reqDate ? `<span class="sumdate">Wunschtermin ${fmtDay(t.reqDate)}</span>` : ''}</div>${esc(t.summary)}<div id="avrow">${availRow(t)}</div></div>` : !t.aiAt && !aiOff ? `<div class="sum busy"><div class="ah">${I.spark}KI liest die Anfrage …</div></div>` : ''}
    <section class="composer top" aria-label="Antwort"><div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
    <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
@@ -1481,7 +1484,6 @@ function popHTML() {
   const o = (attr, v, on, label, dot) => `<button class="opt sm" data-${attr}="${esc(v)}" aria-pressed="${on}">${dot ? `<span class="d" style="--c:${dot}"></span>` : ''}${esc(label)}</button>`;
   return `<div class="rpop" role="dialog" aria-label="Zuweisen" style="top:${rowPop.y}px;left:${rowPop.x}px">
    <b class="rpt">${esc(t.subject)}</b>
-   <h3>Markierung</h3><div class="opts">${o('pprio', 'toggle', t.prio === 'hoch', 'Dringend', 'var(--red)')}${MARKS.map((c) => o('pc', c, t.color === c, COLOR_NAMES[c], COLORS[c])).join('')}${o('pc', 'none', !t.color, 'Keine')}</div>
    <h3>Status</h3><div class="opts">${Object.entries(ST_LABEL).map(([k, l]) => o('pst', k, t.status === k, l)).join('')}</div>
    <h3>Studio</h3><div class="opts">${o('pstu', 'P', t.studio === 'P', 'Penthouse')}${o('pstu', 'F', t.studio === 'F', 'Factory')}${o('pstu', 'X', t.studio === 'X', 'Offen')}</div>
    <h3>Art</h3><div class="opts">${CATS.map((c) => o('pcat', c, t.cat === c, c)).join('')}</div></div>`;
@@ -1520,7 +1522,6 @@ function sheetHTML() {
   const t = current; if (sheet !== 'more' || !t) return '';
   const o = (attr, v, on, label, dot) => `<button class="opt" data-${attr}="${esc(v)}" aria-pressed="${on}">${dot ? `<span class="d" style="--c:${dot}"></span>` : ''}${esc(label)}</button>`;
   return `<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-label="Anfrage bearbeiten"><div class="grab"></div><h2>Anfrage</h2>
-   <h3>Markierung</h3><div class="opts">${o('prio', 'toggle', t.prio === 'hoch', 'Dringend', 'var(--red)')}${MARKS.map((c) => o('c', c, t.color === c, COLOR_NAMES[c], COLORS[c])).join('')}${o('c', 'none', !t.color, 'Keine')}</div>
    <h3>Studio</h3><div class="opts">${o('s', 'P', t.studio === 'P', 'Penthouse')}${o('s', 'F', t.studio === 'F', 'Factory')}${o('s', 'X', t.studio === 'X', 'Nicht festgelegt')}</div>
    <h3>Art der Anfrage</h3><div class="opts">${CATS.map((c) => o('cat', c, t.cat === c, c)).join('')}</div>
    <h3>Priorität</h3><div class="opts">${['hoch', 'normal', 'niedrig'].map((p) => o('p', p, t.prio === p, p[0].toUpperCase() + p.slice(1))).join('')}</div>
@@ -1708,7 +1709,8 @@ function calForThread(t) {
   const k = (t.reqDate || isoOf(new Date())).slice(0, 7);
   if (calNeeds([k])) ensureCal([k]).then(() => { if (current?.id === t.id) fillAvail(); });
 }
-async function fillCostCard() {
+async function fillCostCard() { try { await fillCostCard2(); } catch (e) { const c = $('#costcard'); if (c) c.innerHTML = '<h3>KI-Kosten</h3><div class="srow"><div class="stx"><b>Nicht verfügbar</b><small class="errline">' + esc(e.message) + '</small></div></div>'; } }
+async function fillCostCard2() {
   const c = $('#costcard'); if (!c) return;
   const now = new Date(), m0 = new Date(now.getFullYear(), now.getMonth(), 1), p0 = new Date(now.getFullYear(), now.getMonth() - 1, 1), d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const rows = [];
