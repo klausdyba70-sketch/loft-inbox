@@ -886,6 +886,13 @@ button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
 .row.mk.sel,.row.mk[aria-current="true"]{box-shadow:0 0 0 2px var(--mk)}
 .mkc{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:99px;font-size:12px;font-weight:600;background:var(--mk);color:#fff}
 .row.mk .qa{background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--mk) 11%,var(--surface)) 12px)}
+
+.mtile{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none;align-self:start;border:1.5px dashed var(--line);color:var(--mute);background:transparent;cursor:pointer}
+.mtile svg{width:18px;height:18px}
+.mtile:hover{border-color:var(--mute);color:var(--ink)}
+.mtile.on{border:0;background:var(--mk);color:#fff;box-shadow:0 2px 6px color-mix(in srgb,var(--mk) 35%,transparent)}
+.ghostchip{border-style:dashed!important;color:var(--mute)}
+.ghostchip[aria-pressed="true"]{color:var(--ink)}
 </style>
 </head>
 <body data-view="auth">
@@ -936,6 +943,9 @@ applyTheme();
 const ini = (n) => n.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const avc = (n) => AV[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % AV.length];
 const avatar = (t, mk = true) => { const c = avc(t.name); return `<span class="av" style="background:color-mix(in srgb,${c} 16%,var(--surface));color:${c}">${esc(ini(t.name))}${mk && t.color ? `<span class="mk" style="--c:${COLORS[t.color]}"></span>` : ''}</span>`; };
+const markTile = (t) => t.color
+  ? `<button class="mtile on" style="--mk:${COLORS[t.color]}" data-qmenu="${t.id}" title="${COLOR_NAMES[t.color]} · ändern" aria-label="Markierung ${COLOR_NAMES[t.color]} ändern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4h11l-2 4 2 4H6"/></svg></button>`
+  : `<button class="mtile" data-qmenu="${t.id}" title="Markierung setzen" aria-label="Markierung setzen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 7v10M7 12h10"/></svg></button>`;
 const rowState = (t) => t.status === 'spam' ? 'spam' : t.status === 'abgeschlossen' ? 'closed' : t.status === 'offen' ? (t.unread ? 'neu' : 'todo') : 'done';
 const stateBadge = (t) => { const s = rowState(t); return s === 'neu' ? '<span class="sb sb-neu">Neu</span>' : s === 'todo' ? '<span class="sb sb-todo">Antworten</span>' : s === 'done' ? `<span class="sb sb-done">✓ ${ST_LABEL[t.status]}</span>` : stPill(t); };
 const stPill = (t) => `<span class="st st-${t.status}">${ST_LABEL[t.status]}</span>`;
@@ -946,8 +956,9 @@ const fmtT = (d) => (dayDiff(d) <= 0 ? d.toTimeString().slice(0, 5) : d.toLocale
 const fmtFull = (d) => new Date(d).toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 const waitingH = (t) => (t.status === 'offen' ? (Date.now() - t.at) / 36e5 : 0);
 const sortKey = (t) => (t.prio === 'hoch' && t.status === 'offen' ? 0 : 1) * 1e13 + (t.status === 'offen' ? 0 : 1) * 1e12 - +t.at / 10;
+let showClosed = false; try { showClosed = localStorage.getItem('li-showclosed') === '1'; } catch (e) {}
 const FILTERS = [
-  ['alle', 'Alle', (t) => t.status !== 'spam'],
+  ['alle', 'Alle', (t) => t.status !== 'spam' && (showClosed || t.status !== 'abgeschlossen')],
   ['offen', 'Offen', (t) => t.status === 'offen'],
   ['wichtig', 'Wichtig', (t) => t.star || (t.prio === 'hoch' && t.status === 'offen')],
   ['wartet', 'Wartet', (t) => t.status === 'beantwortet'],
@@ -1078,7 +1089,7 @@ function renderList() {
    <div class="boxsw"><div class="seg" role="group" aria-label="Bereich"><button data-box="anfragen" aria-pressed="${box === 'anfragen'}">Anfragen${nA ? `<em>${nA}</em>` : ''}</button><button data-box="sonstiges" aria-pressed="${box === 'sonstiges'}">Sonstiges${nS ? `<em>${nS}</em>` : ''}</button></div></div>
    <div class="search"><label class="sbox">${I.search}<input id="q" type="search" autocomplete="off" placeholder="Suchen oder @ die KI fragen" value="${esc(query)}" aria-label="Suchen"><button class="clr" id="clr" aria-label="Suche leeren" ${query ? '' : 'hidden'}>×</button></label></div>
    <div class="tfil" role="group" aria-label="Zeitraum">${['neu', 'woche', 'alt'].map((k) => `<button data-tf="${k}" aria-pressed="${tfil === k}">${I[k]}<span>${TFIL[k].l}</span><em>${sc.filter(statusF()).filter(TFIL[k].f).length}</em></button>`).join('')}</div>
-   <div class="filters">${FILTERS.map(([k, l, f]) => `<button class="chip" data-f="${k}" aria-pressed="${filter === k}">${l}<span class="n">${sc.filter(f).length}</span></button>`).join('')}</div>
+   <div class="filters">${FILTERS.map(([k, l, f]) => `<button class="chip" data-f="${k}" aria-pressed="${filter === k}">${l}<span class="n">${sc.filter(f).length}</span></button>`).join('')}${filter === 'alle' ? `<button class="chip ghostchip" id="togclosed" aria-pressed="${showClosed}" title="Abgeschlossene Anfragen unter Alle zeigen">${showClosed ? 'Abgeschlossene ausblenden' : 'Abgeschlossene einblenden'}</button>` : ''}</div>
    <div class="rows" id="rows">${rowsHTML()}</div>${bulkHTML()}<div class="lgrip" id="lgrip" role="separator" aria-orientation="vertical" aria-label="Listenbreite ändern" tabindex="0"></div>`;
   bindList();
   if (focus) { const q = $('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
@@ -1106,7 +1117,7 @@ function rowsHTML() {
     const gh = grouped && bk[0] !== lastB ? `<div class="grp">${bk[1]}<span>${list.filter((x) => bucket(x)[0] === bk[0]).length}</span></div>` : ''; lastB = bk[0];
     const sel = selected.has(t.id), closed = t.status === 'abgeschlossen' && filter !== 'abgeschlossen';
     return gh + `<div role="button" tabindex="0" style="${t.color ? `--mk:${COLORS[t.color]}` : ''}" class="row rs-${rowState(t)} ${t.color ? 'mk' : ''} ${t.unread ? 'unread' : ''} ${closed ? 'isclosed' : ''} ${selMode ? 'selm' : ''} ${sel ? 'sel' : ''}" ${selMode ? `data-sel="${t.id}"` : `data-id="${t.id}" aria-current="${current?.id === t.id}"`}>
-     ${selMode ? `<span class="cbx ${sel ? 'on' : ''}">${sel ? '✓' : ''}</span>` : ''}${avatar(t)}
+     ${selMode ? `<span class="cbx ${sel ? 'on' : ''}">${sel ? '✓' : ''}</span>` : ''}${markTile(t)}
      <span class="rc"><span class="r1"><b>${esc(t.name)}</b>${t.star ? '<span class="star">★</span>' : ''}<time>${fmtT(t.at)}</time></span>
      <span class="r2">${esc(t.subject)}</span>
      <span class="r3">${stateBadge(t)}${t.prio === 'hoch' && t.status === 'offen' && t.color !== 'rot' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color ? `<span class="mkc">${COLOR_NAMES[t.color]}</span>` : ''}${(t.spam || 0) >= 40 && t.status !== 'spam' ? `<span class="st st-spam">Spam? ${t.spam} %</span>` : ''}${t.studio !== 'X' || t.cat ? `<span>${t.studio !== 'X' ? STUDIO[t.studio].replace(' Loft', '') : ''}${t.studio !== 'X' && t.cat ? ' · ' : ''}${esc(t.cat || '')}</span>` : ''}${w > 12 ? `<span class="hot">· ${Math.round(w)} h</span>` : ''}</span></span>${selMode ? '' : `<span class="qa"><button class="qbtn2 ${t.star ? 'on' : ''}" data-qstar="${t.id}" title="Wichtig" aria-label="Wichtig">★</button><button class="qbtn2" data-qdone="${t.id}" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="Erledigt">✓</button><button class="qbtn2" data-qmenu="${t.id}" title="Zuweisen" aria-label="Zuweisen">•••</button></span>`}</div>`;
@@ -1686,6 +1697,7 @@ document.addEventListener('click', async (e) => {
   if (b.id === 'selmode') { selMode = !selMode; selected.clear(); renderList(); return; }
   if (b.dataset.qstar) { const t2 = threads.find((x) => x.id === b.dataset.qstar); quickPatch(t2.id, { star: !t2.star }); return; }
   if (b.dataset.qdone) { const t2 = threads.find((x) => x.id === b.dataset.qdone); const st2 = t2.status === 'abgeschlossen' ? 'offen' : 'abgeschlossen'; quickPatch(t2.id, { status: st2 }, st2 === 'abgeschlossen' ? 'Erledigt' : 'Wieder offen'); return; }
+  if (b.id === 'togclosed') { showClosed = !showClosed; try { localStorage.setItem('li-showclosed', showClosed ? '1' : '0'); } catch (err) {} page = 0; renderList(); return; }
   if (b.dataset.qmenu) { if (rowPop?.id === b.dataset.qmenu) { rowPop = null; renderPop(); } else openPop(b.dataset.qmenu, b); return; }
   if (rowPop && b.dataset.pc) { quickPatch(rowPop.id, { color: b.dataset.pc === 'none' ? null : b.dataset.pc }); return; }
   if (rowPop && b.dataset.pst) { quickPatch(rowPop.id, { status: b.dataset.pst }); return; }
