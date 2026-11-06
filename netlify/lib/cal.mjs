@@ -160,8 +160,8 @@ export async function availabilityForPrompt(dateIso, studio) {
     let alt = '';
     if (t !== 'frei') {
       const free = [];
-      for (let i = 1; i <= 7 && free.length < 4; i++) for (const k of [-i, i]) { const dd = addDays(dateIso, k); if (dd >= today && dayText(b.events, c.key, dd) === 'frei' && free.length < 4) free.push(dd); }
-      alt = free.length ? ` Freie Tage in der Nähe: ${free.sort().join(', ')}.` : '';
+      for (let i = 1; i <= 14 && free.length < 2; i++) for (const k of [i, -i]) { const dd = addDays(dateIso, k); if (dd > today && dayText(b.events, c.key, dd) === 'frei' && free.length < 2) free.push(dd); }
+      alt = free.length ? ` Zwei freie Alternativen: ${free.sort().map((d) => new Date(d + 'T12:00:00Z').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'numeric', timeZone: 'UTC' })).join(' und ')}.` : '';
     }
     return `- ${c.name} am ${dateIso}: ${t}.${alt}`;
   });
