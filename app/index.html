@@ -772,6 +772,10 @@ mark{background:#f1dfa6}
 .errline{display:block;color:var(--red)!important;margin-top:4px;font-weight:500}
 .verr{color:var(--red)!important}
 .aierr{font-size:12px;color:var(--red);background:var(--red-soft);border-radius:9px;padding:6px 10px}
+.aigo{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:11px;background:var(--primary-soft);color:var(--primary);font-weight:600;font-size:13.5px;border:1px solid color-mix(in srgb,var(--primary) 25%,transparent)}
+.aigo svg{width:14px;height:14px}
+.aigo:hover{background:var(--primary);color:var(--on-primary)}
+.ctop .aierr{flex:1;min-width:0}
 </style>
 </head>
 <body data-view="auth">
@@ -1093,7 +1097,8 @@ function draftBarHTML(t) {
   const ds = aiDrafts[t.id] || [], busy = aiBusy[t.id];
   const cur = curVar[t.id] ?? 0;
   const err = aiErr[t.id];
-  const chips = VARS.map((k, i) => { const d = ds.find((x) => x.position === i); if (d) return `<button data-dv="${i}" aria-pressed="${cur === i}">${esc(d.label)}</button>`; if (busy) return `<button disabled><span class="dots"><i></i><i></i><i></i></span></button>`; if (err) return `<button data-dretry="${k}" class="verr" title="${esc(err)}">${VLABEL[k]} ↻</button>`; return `<button data-dretry="${k}">${VLABEL[k]}</button>`; }).join('');
+  if (!ds.length && !busy) return `<div class="ctop"><button class="aigo" id="dgen">${I.spark}Antwortvorschläge schreiben</button>${err ? `<span class="aierr">${esc(err)}</span>` : ''}</div>`;
+  const chips = VARS.map((k, i) => { const d = ds.find((x) => x.position === i); if (d) return `<button data-dv="${i}" data-pos="${i}" aria-pressed="${cur === i}">${esc(d.label)}</button>`; if (busy) return `<button disabled><span class="dots"><i></i><i></i><i></i></span></button>`; if (err) return `<button data-dretry="${k}" class="verr" title="${esc(err)}">${VLABEL[k]} ↻</button>`; return `<button data-dretry="${k}">${VLABEL[k]}</button>`; }).join('');
   return `<div class="ctop"><span class="ailbl">${I.spark}KI</span><div class="seg dvseg" role="group" aria-label="Antwortvorschläge">${chips}</div><button class="mini" id="dregen" ${busy ? 'disabled' : ''} title="Neue Vorschläge">↻</button></div>
    ${err && !busy ? `<div class="aierr">${esc(err)}</div>` : ''}
    <div class="refine">${REFINE.map(([l], i) => `<button data-rf="${i}">${l}</button>`).join('')}</div>`;
@@ -1102,19 +1107,45 @@ async function loadDrafts(t) {
   const { data } = await sb.from('drafts').select('label,body,position,based_on').eq('thread_id', t.id).order('position');
   aiDrafts[t.id] = data || [];
   const li = lastInAt(), fresh = (data || []).length && li && data.every((d) => d.based_on && new Date(d.based_on) >= new Date(new Date(li) - 1000));
-  if (!fresh && li && msgs[msgs.length - 1]?.direction === 'in' && !['spam', 'abgeschlossen'].includes(t.status) && t.kind !== 'sonstiges') genDrafts(t);
+  if (!fresh) aiDrafts[t.id] = [];
+  if (!fresh && t.isTest && li && msgs[msgs.length - 1]?.direction === 'in') genDrafts(t);
   else { fillFirst(t); refreshDraftBar(t); }
 }
 function fillFirst(t) {
   const d = (aiDrafts[t.id] || []).find((x) => x.position === (curVar[t.id] ?? 0)) || (aiDrafts[t.id] || [])[0];
   if (d && !drafts[t.id]) { drafts[t.id] = d.body; curVar[t.id] = d.position; }
 }
+async function streamDraft(t, k) {
+  const { data } = await sb.auth.getSession();
+  const r = await fetch('/api/ai/draft', { method: 'POST', headers: { authorization: 'Bearer ' + data.session.access_token, 'content-type': 'application/json' }, body: JSON.stringify({ threadId: t.id, variant: k, stream: true }) });
+  if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error(j.error || (r.status >= 500 ? 'Die KI hat zu lange gebraucht. Bitte nochmal versuchen.' : 'Fehler ' + r.status)); }
+  const pos = VARS.indexOf(k), reader = r.body.getReader(), dec = new TextDecoder();
+  let raw = '';
+  const entry = { position: pos, label: '…', body: '', based_on: r.headers.get('x-draft-based-on') };
+  aiDrafts[t.id] = [...(aiDrafts[t.id] || []).filter((x) => x.position !== pos), entry].sort((a, b) => a.position - b.position);
+  for (;;) {
+    const { value, done } = await reader.read(); if (done) break;
+    raw += dec.decode(value, { stream: true });
+    const err = raw.match(/\[\[FEHLER: ([\s\S]*?)\]\]/); if (err) throw new Error(err[1]);
+    const m = raw.match(/^\s*(?:LABEL|Label|Ansatz)\s*:\s*(.+)\n+/);
+    const label = m ? m[1].replace(/[*"]/g, '').trim() : (raw.includes('\n') ? VLABEL[k] : '…');
+    const body = (m ? raw.slice(m[0].length) : raw.includes('\n') && !/^\s*LABEL/i.test(raw) ? raw : '').replace(/\s+—\s+|\s+–\s+/g, ', ');
+    const prevBody = entry.body; entry.label = label.slice(0, 30); entry.body = body;
+    // Wort für Wort ins Antwortfeld, solange dieser Vorschlag gewählt ist und du nichts geändert hast
+    if (current?.id === t.id && (curVar[t.id] ?? 0) === pos) { const ta = $('#draft'); if (ta && (ta.value === prevBody || !ta.value)) { ta.value = body; drafts[t.id] = body; } }
+    if (current?.id === t.id && label !== '…') { const btn = document.querySelector(`.dvseg [data-pos="${pos}"]`); if (btn) btn.textContent = entry.label; }
+  }
+  entry.body = entry.body.trim(); if (!entry.body) throw new Error('Die KI hat keinen Text geliefert.');
+  if ((curVar[t.id] ?? 0) === pos && (!drafts[t.id] || drafts[t.id].trim() === entry.body)) { drafts[t.id] = entry.body; saveDrafts(); }
+}
 async function genDrafts(t) {
   if (aiBusy[t.id]) return;
-  aiBusy[t.id] = true; aiDrafts[t.id] = []; aiErr[t.id] = null; refreshDraftBar(t);
+  aiBusy[t.id] = true; aiDrafts[t.id] = []; aiErr[t.id] = null; curVar[t.id] = 0;
+  if (!drafts[t.id]) drafts[t.id] = '';
+  refreshDraftBar(t);
   await Promise.all(VARS.map(async (k) => {
-    try { const r = await api('/api/ai/draft', { threadId: t.id, variant: k }); aiDrafts[t.id] = [...(aiDrafts[t.id] || []).filter((x) => x.position !== r.draft.position), r.draft].sort((a, b) => a.position - b.position); fillFirst(t); }
-    catch (e) { if (/ANTHROPIC/.test(e.message)) aiOff = true; else aiErr[t.id] = /^Fehler 50[24]/.test(e.message) ? 'Die KI hat zu lange gebraucht. Tippe auf einen Vorschlag, um es nochmal zu versuchen.' : e.message; }
+    try { await streamDraft(t, k); }
+    catch (e) { if (/ANTHROPIC/.test(e.message)) aiOff = true; else aiErr[t.id] = e.message; aiDrafts[t.id] = (aiDrafts[t.id] || []).filter((x) => x.position !== VARS.indexOf(k)); }
     refreshDraftBar(t);
   }));
   aiBusy[t.id] = false; refreshDraftBar(t);
@@ -1396,8 +1427,8 @@ document.addEventListener('click', async (e) => {
   if (b.dataset.st) { await patch(t, { status: b.dataset.st }); render(); return; }
   if (b.id === 'spam') { await patch(t, { status: t.status === 'spam' ? 'offen' : 'spam' }); sheet = null; toast(t.status === 'spam' ? 'Als Spam markiert' : 'Zurück in Anfragen'); render(); return; }
   if (b.dataset.dv) { const i = +b.dataset.dv, d = (aiDrafts[t.id] || []).find((x) => x.position === i); if (d) { curVar[t.id] = i; drafts[t.id] = d.body; saveDrafts(); redrawDetail(); } return; }
-  if (b.id === 'dregen') { drafts[t.id] = ''; genDrafts(t); return; }
-  if (b.dataset.dretry) { const k = b.dataset.dretry; aiErr[t.id] = null; b.disabled = true; b.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>'; try { const r = await api('/api/ai/draft', { threadId: t.id, variant: k }); aiDrafts[t.id] = [...(aiDrafts[t.id] || []).filter((x) => x.position !== r.draft.position), r.draft].sort((a, b2) => a.position - b2.position); fillFirst(t); } catch (err) { aiErr[t.id] = err.message; } refreshDraftBar(t); return; }
+  if (b.id === 'dregen' || b.id === 'dgen') { drafts[t.id] = ''; const ta = $('#draft'); if (ta) ta.value = ''; genDrafts(t); return; }
+  if (b.dataset.dretry) { aiErr[t.id] = null; b.disabled = true; b.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>'; try { await streamDraft(t, b.dataset.dretry); } catch (err) { aiErr[t.id] = err.message; } refreshDraftBar(t); return; }
   if (b.dataset.rf) { const ta = $('#draft'); const txt = (ta?.value || '').trim(); if (!txt) return toast('Erst einen Text wählen oder schreiben'); const [l, ins] = REFINE[+b.dataset.rf]; b.disabled = true; b.textContent = '…'; try { const r = await api('/api/ai/refine', { text: txt, instruction: ins }); drafts[t.id] = r.text; saveDrafts(); } catch (err) { toast(err.message); } redrawDetail(); return; }
   if (b.id === 'send') { sendReply('beantwortet'); return; }
   if (b.id === 'sendmenu') { sendMenu = !sendMenu; redrawDetail(); return; }

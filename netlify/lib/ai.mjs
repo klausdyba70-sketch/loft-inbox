@@ -189,7 +189,7 @@ async function styleSamples(db, threadId) {
   const { data } = await db.from('messages').select('body_text,thread_id').eq('direction', 'out').neq('thread_id', threadId).order('sent_at', { ascending: false }).limit(6);
   return (data || []).map((m) => (m.body_text || '').slice(0, 700)).filter((x) => x.length > 60).slice(0, 4);
 }
-export async function draftVariant(db, threadId, variantKey) {
+export async function draftPrompt(db, threadId, variantKey) {
   const v = VARIANTS.find((x) => x.key === variantKey) || VARIANTS[0];
   const [{ t, msgs }, st, samples] = await Promise.all([loadThread(db, threadId), settingsRow(db), styleSamples(db, threadId)]);
   const kb = await knowledge(db, t.subject + ' ' + msgs.slice(-4).map((m) => m.body_text || '').join(' '));
@@ -217,18 +217,55 @@ ${samples.length ? 'So klingen Klaus’ bisherige Antworten (nur Ton übernehmen
 Format deiner Antwort:
 Erste Zeile: LABEL: 2 bis 3 Wörter, die den Ansatz benennen
 Dann eine Leerzeile und der vollständige Mailtext. Sonst nichts.`;
-  const raw = await claude({ model: MODEL_WRITE, system, prompt, max_tokens: 700, timeoutMs: 9000 });
-  let label = '', text = raw.replace(/```[a-z]*\n?/gi, '').trim();
+  return { system, prompt, position: VARIANTS.indexOf(v), based_on: lastIn.sent_at, key: v.key };
+}
+
+export function parseDraft(raw, key) {
+  let label = '', text = String(raw || '').replace(/```[a-z]*\n?/gi, '').trim();
   const m = text.match(/^\s*(?:LABEL|Label|Ansatz)\s*:\s*(.+)\n+/);
   if (m) { label = m[1].replace(/[*"]/g, '').trim(); text = text.slice(m[0].length); }
   else if (text.startsWith('{')) { try { const j = parseJson(text); label = j.label || ''; text = j.body || text; } catch (e) {} }
   const body = text.replace(/\s+—\s+|\s+–\s+/g, ', ').trim();
+  label = (label || { direkt: 'Direkt', ausfuehrlich: 'Ausführlich', rueckfrage: 'Rückfrage' }[key] || 'Vorschlag').slice(0, 30);
+  return { label, body };
+}
+export async function saveDraft(db, threadId, d, raw) {
+  const { label, body } = parseDraft(raw, d.key);
   if (!body) throw new Error('Die KI hat keinen Text geliefert. Bitte nochmal versuchen.');
-  label = (label || { direkt: 'Direkt', ausfuehrlich: 'Ausführlich', rueckfrage: 'Rückfrage' }[v.key]).slice(0, 30);
-  const position = VARIANTS.indexOf(v);
-  await db.from('drafts').delete().eq('thread_id', threadId).eq('position', position);
-  await db.from('drafts').insert({ thread_id: threadId, label, body, position, based_on: lastIn.sent_at });
-  return { label, body, position, based_on: lastIn.sent_at };
+  await db.from('drafts').delete().eq('thread_id', threadId).eq('position', d.position);
+  await db.from('drafts').insert({ thread_id: threadId, label, body, position: d.position, based_on: d.based_on });
+  return { label, body, position: d.position, based_on: d.based_on };
+}
+export async function draftVariant(db, threadId, variantKey) {
+  const d = await draftPrompt(db, threadId, variantKey);
+  const raw = await claude({ model: MODEL_WRITE, system: d.system, prompt: d.prompt, max_tokens: 700 });
+  return saveDraft(db, threadId, d, raw);
+}
+// Wort für Wort: liefert Text-Stücke, sobald die KI sie schreibt
+export async function* claudeStream({ model = MODEL_WRITE, system, prompt, max_tokens = 700 }) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw Object.assign(new Error('ANTHROPIC_API_KEY fehlt in Netlify'), { status: 409 });
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model, max_tokens, system, stream: true, messages: [{ role: 'user', content: prompt }] }),
+  });
+  if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error('KI: ' + (j.error?.message || 'Fehler ' + r.status)); }
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (!line.startsWith('data:')) continue;
+      let ev; try { ev = JSON.parse(line.slice(5)); } catch (e) { continue; }
+      if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') yield ev.delta.text;
+      if (ev.type === 'error') throw new Error('KI: ' + (ev.error?.message || 'Fehler'));
+    }
+  }
 }
 
 export async function refineText(text, instruction) {
