@@ -937,11 +937,11 @@ span.mtile{cursor:default}
 .composer.top:not(.big) .grip{display:none}
 
 .composer.top{position:relative}
-.ccol{display:none;position:absolute;top:10px;right:12px;z-index:2;align-items:center;justify-content:center;width:30px;height:28px;padding:0;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--mute);background:var(--sunk)}
+.ccol{display:none;position:absolute;top:12px;right:14px;z-index:2;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--mute);background:var(--sunk)}
 .ccol svg{width:16px;height:16px}
 .ccol:hover{color:var(--ink)}
 .composer.top.big .ccol{display:inline-flex}
-.composer.top.big .from{padding-right:44px}
+.composer.top.big .from{padding-right:60px;min-height:34px;line-height:34px}
 
 .sortseg{display:inline-flex;font-size:12px;height:30px}
 .sortseg button{font-size:12px;padding:0 10px;height:26px}
@@ -960,6 +960,18 @@ span.mtile{cursor:default}
 .costtab>div.ch{font-size:11.5px;color:var(--mute);font-weight:600;padding-top:0}
 .costtab>div>span:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
 .costtab b{font-weight:600}.costtab small{display:block;font-size:11.5px;color:var(--mute)}
+
+.sortrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:2px var(--gr) 8px var(--g);font-size:12.5px;color:var(--mute)}
+.sortrow .slbl{display:inline-flex;align-items:center;gap:5px}
+.sortrow .slbl svg{width:15px;height:15px}
+.stabs{display:inline-flex;gap:12px}
+.stabs button{background:none;border:0;padding:3px 0;font-size:12.5px;color:var(--mute);border-bottom:2px solid transparent;cursor:pointer}
+.stabs button[aria-pressed="true"]{color:var(--ink);font-weight:600;border-bottom-color:var(--primary)}
+.tgl{margin-left:auto;display:inline-flex;align-items:center;gap:7px;background:none;border:0;font-size:12.5px;color:var(--mute);cursor:pointer;padding:3px 0}
+.tgl i{width:28px;height:16px;border-radius:99px;background:var(--line);position:relative;transition:background .15s}
+.tgl i::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgb(0 0 0/.2);transition:left .15s}
+.tgl[aria-checked="true"]{color:var(--ink)}
+.tgl[aria-checked="true"] i{background:var(--primary)}.tgl[aria-checked="true"] i::after{left:14px}
 </style>
 </head>
 <body data-view="auth">
@@ -1163,7 +1175,9 @@ function renderList() {
    <div class="boxsw"><div class="seg" role="group" aria-label="Bereich"><button data-box="anfragen" aria-pressed="${box === 'anfragen'}">Anfragen${nA ? `<em>${nA}</em>` : ''}</button><button data-box="sonstiges" aria-pressed="${box === 'sonstiges'}">Sonstiges${nS ? `<em>${nS}</em>` : ''}</button></div></div>
    <div class="search"><label class="sbox">${I.search}<input id="q" type="search" autocomplete="off" placeholder="Suchen oder @ die KI fragen" value="${esc(query)}" aria-label="Suchen"><button class="clr" id="clr" aria-label="Suche leeren" ${query ? '' : 'hidden'}>×</button></label></div>
    <div class="tfil" role="group" aria-label="Zeitraum">${['neu', 'woche', 'alt'].map((k) => `<button data-tf="${k}" aria-pressed="${tfil === k}">${I[k]}<span>${TFIL[k].l}</span><em>${sc.filter(statusF()).filter(TFIL[k].f).length}</em></button>`).join('')}</div>
-   <div class="filters">${FILTERS.filter(([k, , f]) => k !== 'gebucht' || sc.filter(f).length).map(([k, l, f]) => `<button class="chip" data-f="${k}" aria-pressed="${filter === k}">${l}<span class="n">${sc.filter(f).length}</span></button>`).join('')}<span class="sortseg seg" role="group" aria-label="Sortierung"><button data-sort="neu" aria-pressed="${sortMode === 'neu'}" title="Zuletzt geschriebene oder beantwortete Mail oben">Neueste zuerst</button><button data-sort="wichtig" aria-pressed="${sortMode === 'wichtig'}" title="Dringende und offene Anfragen oben">Wichtige zuerst</button></span>${filter === 'alle' ? `<button class="chip ghostchip" id="togclosed" aria-pressed="${showClosed}" title="Abgeschlossene Anfragen unter Alle zeigen">${showClosed ? 'Abgeschlossene ausblenden' : 'Abgeschlossene einblenden'}</button>` : ''}</div>
+   <div class="filters">${FILTERS.filter(([k, , f]) => k !== 'gebucht' || sc.filter(f).length).map(([k, l, f]) => `<button class="chip" data-f="${k}" aria-pressed="${filter === k}">${l}<span class="n">${sc.filter(f).length}</span></button>`).join('')}</div>
+   <div class="sortrow"><span class="slbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 16l4 4 4-4M14 6h7M14 11h5M14 16h3"/></svg>Sortierung</span><div class="stabs" role="group" aria-label="Sortierung"><button data-sort="neu" aria-pressed="${sortMode === 'neu'}" title="Zuletzt eingegangene oder beantwortete Mail oben">Neueste Aktivität</button><button data-sort="wichtig" aria-pressed="${sortMode === 'wichtig'}" title="Dringende und offene Anfragen oben">Wichtige zuerst</button></div>
+    ${filter === 'alle' ? `<button class="tgl" id="togclosed" role="switch" aria-checked="${showClosed}" title="Abgeschlossene Anfragen unter Alle zeigen"><i></i>Abgeschlossene</button>` : ''}</div>
    <div class="rows" id="rows">${rowsHTML()}</div>${bulkHTML()}<div class="lgrip" id="lgrip" role="separator" aria-orientation="vertical" aria-label="Listenbreite ändern" tabindex="0"></div>`;
   bindList();
   if (focus) { const q = $('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
@@ -1437,7 +1451,7 @@ async function sendReply(as = 'beantwortet') {
     await loadThreads();
     const fresh = threads.find((x) => x.id === t.id); if (fresh) await patch(fresh, fields);
     toast('Gesendet · ' + SEND_AS.find((x) => x[0] === as)[1]);
-    curVar[t.id] = 0; aiDrafts[t.id] = [];
+    curVar[t.id] = 0; aiDrafts[t.id] = []; composerBig[t.id] = false;
     await openThread(t.id); scrollNewest();
     if (sr.test && as !== 'abgeschlossen') {
       testTyping[t.id] = true; redrawDetail(); scrollNewest();
