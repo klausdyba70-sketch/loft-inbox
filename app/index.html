@@ -870,6 +870,22 @@ button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
 .cnum{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--mute)}
 .cnum em{font-style:normal;font-weight:700;color:var(--ink);font-family:var(--display);font-size:15px}
 .cst2 small{font-size:11.5px;color:var(--mute)}
+
+/* Liste: Zustand auf den ersten Blick (Streifen links + Schild), Markierung als Farbfläche */
+.row.rs-neu,.row.rs-todo,.row.rs-done{overflow:hidden}
+.row.rs-neu::before,.row.rs-todo::before,.row.rs-done::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--sbar)}
+.row.rs-neu{--sbar:var(--ai)}
+.row.rs-todo{--sbar:var(--orange)}
+.row.rs-done{--sbar:color-mix(in srgb,var(--green) 55%,transparent)}
+.row.rs-done .r2,.row.rs-done .r1 b{color:var(--soft);font-weight:500}
+.sb{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px;border-radius:99px;font-size:12px;font-weight:700;letter-spacing:.01em;flex:none}
+.sb-neu{background:var(--ai);color:var(--surface)}
+.sb-todo{background:var(--orange);color:#fff}
+.sb-done{background:var(--green-soft);color:var(--green);font-weight:600}
+.row.mk{background:color-mix(in srgb,var(--mk) 11%,var(--surface));border-color:color-mix(in srgb,var(--mk) 45%,var(--line))}
+.row.mk.sel,.row.mk[aria-current="true"]{box-shadow:0 0 0 2px var(--mk)}
+.mkc{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:99px;font-size:12px;font-weight:600;background:var(--mk);color:#fff}
+.row.mk .qa{background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--mk) 11%,var(--surface)) 12px)}
 </style>
 </head>
 <body data-view="auth">
@@ -920,6 +936,8 @@ applyTheme();
 const ini = (n) => n.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const avc = (n) => AV[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % AV.length];
 const avatar = (t, mk = true) => { const c = avc(t.name); return `<span class="av" style="background:color-mix(in srgb,${c} 16%,var(--surface));color:${c}">${esc(ini(t.name))}${mk && t.color ? `<span class="mk" style="--c:${COLORS[t.color]}"></span>` : ''}</span>`; };
+const rowState = (t) => t.status === 'spam' ? 'spam' : t.status === 'abgeschlossen' ? 'closed' : t.status === 'offen' ? (t.unread ? 'neu' : 'todo') : 'done';
+const stateBadge = (t) => { const s = rowState(t); return s === 'neu' ? '<span class="sb sb-neu">Neu</span>' : s === 'todo' ? '<span class="sb sb-todo">Antworten</span>' : s === 'done' ? `<span class="sb sb-done">✓ ${ST_LABEL[t.status]}</span>` : stPill(t); };
 const stPill = (t) => `<span class="st st-${t.status}">${ST_LABEL[t.status]}</span>`;
 const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 const dayDiff = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return Math.round((today0() - x) / 864e5); };
@@ -1087,11 +1105,11 @@ function rowsHTML() {
     const w = waitingH(t), bk = bucket(t);
     const gh = grouped && bk[0] !== lastB ? `<div class="grp">${bk[1]}<span>${list.filter((x) => bucket(x)[0] === bk[0]).length}</span></div>` : ''; lastB = bk[0];
     const sel = selected.has(t.id), closed = t.status === 'abgeschlossen' && filter !== 'abgeschlossen';
-    return gh + `<div role="button" tabindex="0" class="row ${t.unread ? 'unread' : ''} ${closed ? 'isclosed' : ''} ${selMode ? 'selm' : ''} ${sel ? 'sel' : ''}" ${selMode ? `data-sel="${t.id}"` : `data-id="${t.id}" aria-current="${current?.id === t.id}"`}>
+    return gh + `<div role="button" tabindex="0" style="${t.color ? `--mk:${COLORS[t.color]}` : ''}" class="row rs-${rowState(t)} ${t.color ? 'mk' : ''} ${t.unread ? 'unread' : ''} ${closed ? 'isclosed' : ''} ${selMode ? 'selm' : ''} ${sel ? 'sel' : ''}" ${selMode ? `data-sel="${t.id}"` : `data-id="${t.id}" aria-current="${current?.id === t.id}"`}>
      ${selMode ? `<span class="cbx ${sel ? 'on' : ''}">${sel ? '✓' : ''}</span>` : ''}${avatar(t)}
      <span class="rc"><span class="r1"><b>${esc(t.name)}</b>${t.star ? '<span class="star">★</span>' : ''}<time>${fmtT(t.at)}</time></span>
      <span class="r2">${esc(t.subject)}</span>
-     <span class="r3">${t.prio === 'hoch' && t.status === 'offen' ? '<span class="st st-hot">Dringend</span>' : stPill(t)}${(t.spam || 0) >= 40 && t.status !== 'spam' ? `<span class="st st-spam">Spam? ${t.spam} %</span>` : ''}${t.studio !== 'X' || t.cat ? `<span>${t.studio !== 'X' ? STUDIO[t.studio].replace(' Loft', '') : ''}${t.studio !== 'X' && t.cat ? ' · ' : ''}${esc(t.cat || '')}</span>` : ''}${w > 12 ? `<span class="hot">· ${Math.round(w)} h</span>` : ''}</span></span>${selMode ? '' : `<span class="qa"><button class="qbtn2 ${t.star ? 'on' : ''}" data-qstar="${t.id}" title="Wichtig" aria-label="Wichtig">★</button><button class="qbtn2" data-qdone="${t.id}" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="Erledigt">✓</button><button class="qbtn2" data-qmenu="${t.id}" title="Zuweisen" aria-label="Zuweisen">•••</button></span>`}</div>`;
+     <span class="r3">${stateBadge(t)}${t.prio === 'hoch' && t.status === 'offen' && t.color !== 'rot' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color ? `<span class="mkc">${COLOR_NAMES[t.color]}</span>` : ''}${(t.spam || 0) >= 40 && t.status !== 'spam' ? `<span class="st st-spam">Spam? ${t.spam} %</span>` : ''}${t.studio !== 'X' || t.cat ? `<span>${t.studio !== 'X' ? STUDIO[t.studio].replace(' Loft', '') : ''}${t.studio !== 'X' && t.cat ? ' · ' : ''}${esc(t.cat || '')}</span>` : ''}${w > 12 ? `<span class="hot">· ${Math.round(w)} h</span>` : ''}</span></span>${selMode ? '' : `<span class="qa"><button class="qbtn2 ${t.star ? 'on' : ''}" data-qstar="${t.id}" title="Wichtig" aria-label="Wichtig">★</button><button class="qbtn2" data-qdone="${t.id}" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="Erledigt">✓</button><button class="qbtn2" data-qmenu="${t.id}" title="Zuweisen" aria-label="Zuweisen">•••</button></span>`}</div>`;
   }).join('');
   const pager = `<div class="pager"><span class="pinfo">${from + 1}–${from + shown.length} von ${total}</span><div class="seg psize" role="group" aria-label="Pro Seite">${[10, 25, 50, 100].map((n) => `<button data-ps="${n}" aria-pressed="${pageSize === n}">${n}</button>`).join('')}</div><span class="pnav"><button class="icon" data-pg="-1" aria-label="Vorherige Seite" ${page === 0 ? 'disabled' : ''}>${I.back}</button><span class="pnum">${page + 1}/${pages}</span><button class="icon flip" data-pg="1" aria-label="Nächste Seite" ${page >= pages - 1 ? 'disabled' : ''}>${I.back}</button></span></div>`;
   return pre + selbar + rows + pager;
