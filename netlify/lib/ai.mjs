@@ -183,9 +183,9 @@ export const VARIANTS = [
   { key: 'rueckfrage', hint: 'Rückfrage oder Alternative: fragt gezielt nach fehlenden Angaben (Datum, Uhrzeit, Personen, Art der Produktion) oder bietet eine Alternative an, falls etwas unklar oder nicht möglich ist.' },
 ];
 async function settingsRow(db) {
-  let { data, error } = await db.from('settings').select('tone,signature,rules').eq('id', true).maybeSingle();
+  let { data, error } = await db.from('settings').select('tone,signature,ai_rules').eq('id', true).maybeSingle();
   if (error) ({ data } = await db.from('settings').select('tone,signature').eq('id', true).maybeSingle()); // Spalte rules noch nicht angelegt
-  return { tone: 'du', signature: 'Viele Grüße\nKlaus\nLoft Studio Cologne', rules: '', ...(data || {}) };
+  return { tone: 'du', signature: 'Viele Grüße\nKlaus\nLoft Studio Cologne', ...(data || {}), rules: data?.ai_rules || '' };
 }
 async function styleSamples(db, threadId) {
   const { data } = await db.from('messages').select('body_text,thread_id').eq('direction', 'out').neq('thread_id', threadId).order('sent_at', { ascending: false }).limit(6);
