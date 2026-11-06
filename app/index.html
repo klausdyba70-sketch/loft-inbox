@@ -972,6 +972,12 @@ span.mtile{cursor:default}
 .tgl i::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgb(0 0 0/.2);transition:left .15s}
 .tgl[aria-checked="true"]{color:var(--ink)}
 .tgl[aria-checked="true"] i{background:var(--primary)}.tgl[aria-checked="true"] i::after{left:14px}
+
+.row.rs-reply{overflow:hidden}
+.row.rs-reply::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--ai)}
+.sb-reply{background:var(--ai-soft);color:var(--ai);box-shadow:inset 0 0 0 1.5px var(--ai)}
+.row.rs-reply.unread .sb-reply{background:var(--ai);color:var(--surface);box-shadow:none}
+.cdots .dt.no{display:none}
 </style>
 </head>
 <body data-view="auth">
@@ -1030,8 +1036,8 @@ const markTile = (t) => t.prio === 'hoch' && t.status === 'offen'
   : t.color === 'orange' && t.status !== 'abgeschlossen'
   ? `<span class="mtile on" style="--mk:var(--orange)" title="Angebot offen" aria-label="Angebot offen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h10l4 4v12H5z"/><path d="M14 4v5h5M8 13h8M8 17h5"/></svg></span>`
   : '';
-const rowState = (t) => t.status === 'spam' ? 'spam' : t.status === 'abgeschlossen' ? 'closed' : t.status === 'offen' ? (t.unread ? 'neu' : 'todo') : 'done';
-const stateBadge = (t) => { const s = rowState(t); return s === 'neu' ? '<span class="sb sb-neu">Neu</span>' : s === 'todo' ? '' : s === 'done' ? `<span class="sb sb-done">✓ ${ST_LABEL[t.status]}</span>` : stPill(t); };
+const rowState = (t) => t.status === 'spam' ? 'spam' : t.status === 'abgeschlossen' ? 'closed' : t.status === 'offen' ? (t.replied ? 'reply' : t.unread ? 'neu' : 'todo') : 'done';
+const stateBadge = (t) => { const s = rowState(t); return s === 'reply' ? '<span class="sb sb-reply">↩ Hat geantwortet</span>' : s === 'neu' ? '<span class="sb sb-neu">Neu</span>' : s === 'todo' ? '' : s === 'done' ? `<span class="sb sb-done">✓ ${ST_LABEL[t.status]}</span>` : stPill(t); };
 const stPill = (t) => `<span class="st st-${t.status}">${ST_LABEL[t.status]}</span>`;
 const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 const dayDiff = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return Math.round((today0() - x) / 864e5); };
@@ -1055,7 +1061,7 @@ const FILTERS = [
 const TFIL = { alle: { l: 'Alle', f: () => true }, neu: { l: 'Neu', f: (t) => t.unread || dayDiff(t.at) <= 1 }, woche: { l: '7 Tage', f: (t) => dayDiff(t.at) < 7 }, alt: { l: 'Älter', f: (t) => dayDiff(t.at) >= 7 } };
 const statusF = () => FILTERS.find((x) => x[0] === filter)[2];
 
-const fromDb = (r) => ({ id: r.id, subject: r.subject, status: r.status, unread: r.unread, star: r.starred, prio: r.priority, color: r.marker, studio: r.studio, cat: r.category, spam: r.spam_score, summary: r.summary, kind: r.kind, isTest: !!r.is_test, reqDate: r.requested_date, aiAt: r.ai_at, at: new Date(r.last_message_at), name: r.contacts?.name || r.contacts?.email || '?', email: r.contacts?.email || '' });
+const fromDb = (r) => ({ id: r.id, subject: r.subject, status: r.status, unread: r.unread, star: r.starred, prio: r.priority, color: r.marker, studio: r.studio, cat: r.category, spam: r.spam_score, summary: r.summary, kind: r.kind, isTest: !!r.is_test, reqDate: r.requested_date, aiAt: r.ai_at, replied: r.first_response_minutes != null, at: new Date(r.last_message_at), name: r.contacts?.name || r.contacts?.email || '?', email: r.contacts?.email || '' });
 const DBF = { status: 'status', unread: 'unread', star: 'starred', prio: 'priority', color: 'marker', studio: 'studio', cat: 'category' };
 async function patch(ts, fields) {
   const list = Array.isArray(ts) ? ts : [ts];
@@ -1147,7 +1153,7 @@ async function loadThreads() {
   // Supabase liefert höchstens 1000 Zeilen pro Abfrage, daher in Blöcken laden
   const all = [];
   for (let from = 0; from < 20000; from += 1000) {
-    const { data, error } = await sb.from('threads').select('id,subject,status,unread,starred,priority,marker,studio,category,spam_score,summary,kind,is_test,requested_date,ai_at,last_message_at,contacts(name,email)').order('last_message_at', { ascending: false }).range(from, from + 999);
+    const { data, error } = await sb.from('threads').select('id,subject,status,unread,starred,priority,marker,studio,category,spam_score,summary,kind,is_test,requested_date,ai_at,first_response_minutes,last_message_at,contacts(name,email)').order('last_message_at', { ascending: false }).range(from, from + 999);
     if (error) { toast(error.message); return; }
     all.push(...data);
     if (data.length < 1000) break;
@@ -1411,7 +1417,7 @@ async function openThread(id) {
 const SEND_AS = [
   ['beantwortet', 'Wartet auf Kunde', 'Standard nach einer Antwort'],
   ['angebot', 'Angebot gesendet', 'Wartet auf Kunde, Markierung "Angebot offen"'],
-  ['abgeschlossen', 'Gebucht / abgeschlossen', 'Zugesagt oder erledigt, nichts mehr zu tun'],
+  ['abgeschlossen', 'Abgeschlossen', 'Gebucht oder erledigt, nichts mehr zu tun'],
   ['offen', 'Offen lassen', 'Ich melde mich noch einmal'],
 ];
 let sendMenu = false, rowPop = null;
@@ -1453,7 +1459,7 @@ async function sendReply(as = 'beantwortet') {
     toast('Gesendet · ' + SEND_AS.find((x) => x[0] === as)[1]);
     curVar[t.id] = 0; aiDrafts[t.id] = []; composerBig[t.id] = false;
     await openThread(t.id); scrollNewest();
-    if (sr.test && as !== 'abgeschlossen') {
+    if (sr.test) { // Testkundin meldet sich auch nach dem Abschließen noch einmal
       testTyping[t.id] = true; redrawDetail(); scrollNewest();
       setTimeout(async () => {
         try { await api('/api/test/reply', { threadId: t.id }); } catch (err) { toast(err.message); }

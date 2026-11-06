@@ -372,7 +372,21 @@ const SCENARIOS = [
   'Privatperson will einen 40. Geburtstag mit 30 Gästen feiern (mehr als erlaubt), fragt nach Musik und Küche.',
   'Bestehende Kundin hat nächste Woche gebucht und fragt, ob sie eine Stunde früher zum Aufbauen kommen kann.',
   'Yoga-Lehrerin möchte vorher beide Lofts besichtigen, unentschlossen, kein Datum genannt.',
-  'Filmproduktion fragt für 3 Drehtage, braucht Strom für großes Licht und Parkplätze für einen Sprinter.',
+  'Filmproduktion fragt für 3 Drehtage, braucht Starkstrom für großes Licht und Parkplätze für einen Sprinter.',
+  'Start-up will ein Team-Offsite für 10 Personen an einem Freitag, fragt nach WLAN, Bildschirm und ob man Pizza bestellen darf.',
+  'Hochzeitsfotograf will ein Brautpaar-Shooting am Abend bis 23 Uhr machen und fragt, ob das geht.',
+  'Podcast-Team will regelmäßig jeden zweiten Dienstag 3 Stunden aufnehmen und fragt nach Rabatt für Serienbuchung.',
+  'Influencerin fragt sehr knapp per Handy-Mail nur "was kostet 2 std am wochenende?", ohne Namen und Details.',
+  'Englischsprachige Produktionsfirma aus London fragt auf Englisch nach dem Factory Loft für einen Werbedreh mit 12 Personen.',
+  'Fotograf will mit Hund und Katze shooten und fragt, ob Tiere erlaubt sind.',
+  'Firma fragt nach einer Rechnung mit anderer Adresse für eine vergangene Buchung und ob sie die Kaution zurückbekommt.',
+  'Kundin will eine bestehende Buchung um eine Woche verschieben und fragt nach Stornobedingungen.',
+  'Kochkurs-Anbieter will das Penthouse Loft wegen der Küche für einen Kochkurs mit 12 Leuten nutzen.',
+  'Fotografin fragt, ob Blitzanlage und Hintergrundsysteme ausgeliehen werden können und was das kostet.',
+  'Student fragt für ein Abschlussprojekt nach einem günstigen Preis, hat wenig Budget, 4 Stunden.',
+  'Videoteam fragt, ob es zwei Sets gleichzeitig aufbauen kann und ob Nebel/Haze-Maschinen erlaubt sind.',
+  'Verlag fragt für eine Lesung am Abend mit 40 Gästen und Bewirtung.',
+  'Automatisch weitergeleitete Anfrage über ein Kontaktformular mit vielen Feldern, Datum, Uhrzeit von 9 bis 16 Uhr, 6 Stunden, Personenzahl 5.',
 ];
 export async function generateTestInquiry() {
   const scenario = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
