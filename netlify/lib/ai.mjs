@@ -193,7 +193,7 @@ JSON: {"kind":"anfrage|sonstiges|spam","spam_score":0,"studio":"P|F|X","category
 
 // ---------- Antwortvorschläge (eine Variante pro Aufruf, damit es schnell bleibt) ----------
 export const VARIANTS = [
-  { key: 'direkt', hint: 'Die beste Antwort auf diese Anfrage: beantwortet alle Fragen konkret mit Fakten und Preisen aus dem Wissen, macht den nächsten Schritt klar (z. B. Reservierung, Angebot). Klar und freundlich, eher kurz.' },
+  { key: 'direkt', hint: 'Kurz und auf den Punkt. Geh die Fragen des Kunden der Reihe nach durch und beantworte jede in ein bis zwei Sätzen. Dann ein Satz zum nächsten Schritt. Nichts dazu erzählen, was nicht gefragt war.' },
 ];
 async function settingsRow(db) {
   let { data, error } = await db.from('settings').select('tone,signature,ai_rules').eq('id', true).maybeSingle();
@@ -213,6 +213,12 @@ async function knowledgeFull(db) {
 // Fester Teil (gleich für alle Anfragen, damit er zwischengespeichert werden kann)
 function draftSystem(st, kb) {
   return `Du schreibst E-Mail-Antworten für Klaus von Loft Studio Cologne. Deutsch, natürlich, freundlich und klar, wie ein Mensch, nicht wie ein Callcenter.
+So gehst du vor:
+1. Prüfe zuerst in der FAQ, ob das Vorhaben bei uns überhaupt erlaubt ist (z. B. Musikvideos, laute Produktionen, Uhrzeiten). Ist es nicht erlaubt, sag das klar und freundlich in ein bis zwei Sätzen. Erwähne eine Alternative höchstens in einem Satz.
+2. Finde alle Fragen in der Mail des Kunden, auch versteckte (z. B. "geht auch nachts?", "ist Licht dabei?").
+3. Beantworte genau diese Fragen, in der Reihenfolge des Kunden, jeweils in ein bis zwei Sätzen.
+4. Ende mit einem Satz zum nächsten Schritt.
+Länge: höchstens etwa 120 Wörter ohne Signatur. Keine Floskeln, höchstens ein kurzer Dankessatz am Anfang. Keine Preislisten: nenne nur den Preis, der zur Anfrage passt (z. B. die gewünschte Stundenzahl), und nur wenn nach Preis oder Buchung gefragt ist oder eine Hausregel es verlangt. Was nicht gefragt ist, lässt du weg. Klaus kann später mehr verlangen.
 Regeln:
 - Nutze die FAQ unten. Nenne Preise, Zeiten und Konditionen genau so, wie sie dort stehen. Erfinde nichts. Fehlt eine Angabe, setze einen Platzhalter in eckigen Klammern, z. B. [Preis Tagesmiete].
 - Verfügbarkeit: Steht in der Anfrage ein Kalenderstand, nutze ihn. Ist der Tag frei: schreibe, dass er Stand jetzt noch frei ist und erst mit Bestätigung fest reserviert ist. Ist er belegt: sag das freundlich und biete die freien Tage in der Nähe an. Nenne nie, wer gebucht hat. Ohne Kalenderstand nichts zusagen, sondern [Verfügbarkeit prüfen] setzen.
