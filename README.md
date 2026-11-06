@@ -21,6 +21,13 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 - Antworten gehen über das Postfach raus und liegen danach im Ordner "Gesendet".
 - Status, Farben, Spam und Erledigt gelten nur in der App.
 
+## KI und Testmodus
+
+- `ai-worker` (alle 5 Minuten, nur live) stuft neue Mails ein (Anfrage, Sonstiges, Spam), schreibt Zusammenfassung, erkennt Studio, Art, Wunschtermin, Priorität und bereitet Vorschläge vor.
+- Beim Öffnen einer Anfrage stuft die App bei Bedarf sofort ein und holt 3 Vorschläge (je ein Aufruf, damit es unter 10 s bleibt).
+- Wissen kommt aus der Notion-FAQ (alle 6 Stunden neu). Ohne Notion setzt die KI Platzhalter für Preise.
+- Testmodus: `/api/test/new` erzeugt eine KI-Testanfrage (is_test), Senden in Testanfragen geht nie über Microsoft, `/api/test/reply` lässt die Testkundin antworten, `/api/test/clear` löscht alles.
+
 ## Arbeitsweise (Netlify-Credits sparen)
 
 - Entwickelt wird auf dem Zweig `dev`. Netlify baut ihn als Branch-Deploy unter https://dev--loftstudiocologne-inbox.netlify.app, das kostet keine Credits.
@@ -45,7 +52,9 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 | `MS_CLIENT_SECRET` | Wert des geheimen Clientschlüssels der Microsoft-App "Loft Inbox" | **ja** |
 | `TOKEN_ENC_KEY` | Zufälliger Text mit mindestens 40 Zeichen aus dem Passwortmanager. Verschlüsselt den Microsoft-Zugang in der Datenbank | **ja** |
 
-Später (Phase 3): `ANTHROPIC_API_KEY`, `NOTION_TOKEN`, Google-Zugang, Freshdesk-Schlüssel.
+KI: `ANTHROPIC_API_KEY` (geheim) und `NOTION_TOKEN` (geheim). Optional `AI_MODEL_FAST` / `AI_MODEL_WRITE` (Standard `claude-haiku-5-5`) und `NOTION_PAGE_ID`.
+
+Später: Google-Zugang, Freshdesk-Schlüssel.
 
 ## Bekannte, nicht geheime Werte
 

@@ -102,6 +102,7 @@ async function storeMessage(db, raw) {
   } else if (new Date(at) >= new Date(thread.last_message_at)) {
     if (thread.status !== 'spam') patch.status = 'offen';
     patch.unread = true;
+    patch.ai_at = null;
   }
   if (Object.keys(patch).length) await db.from('threads').update(patch).eq('id', thread.id);
   return 'neu';
