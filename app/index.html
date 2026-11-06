@@ -937,11 +937,17 @@ span.mtile{cursor:default}
 .composer.top:not(.big) .grip{display:none}
 
 .composer.top{position:relative}
-.ccol{display:none;position:absolute;top:10px;right:12px;z-index:2;align-items:center;gap:4px;height:28px;padding:0 10px 0 6px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--mute);background:var(--sunk)}
+.ccol{display:none;position:absolute;top:10px;right:12px;z-index:2;align-items:center;justify-content:center;width:30px;height:28px;padding:0;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--mute);background:var(--sunk)}
 .ccol svg{width:16px;height:16px}
 .ccol:hover{color:var(--ink)}
 .composer.top.big .ccol{display:inline-flex}
-.composer.top.big .from{padding-right:96px}
+.composer.top.big .from{padding-right:44px}
+
+.sortseg{display:inline-flex;font-size:12px;height:30px}
+.sortseg button{font-size:12px;padding:0 10px;height:26px}
+/* aktive Anfrage in der Liste deutlich */
+.row[aria-current="true"]{background:var(--primary-soft)!important;border:2px solid var(--primary)!important;box-shadow:0 4px 14px color-mix(in srgb,var(--primary) 22%,transparent)!important}
+.row[aria-current="true"] .r1 b,.row[aria-current="true"] .r2{color:var(--ink)!important}
 </style>
 </head>
 <body data-view="auth">
@@ -1009,7 +1015,9 @@ const bucket = (t) => { const n = dayDiff(t.at); return n <= 0 ? [0, 'Heute'] : 
 const fmtT = (d) => (dayDiff(d) <= 0 ? d.toTimeString().slice(0, 5) : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: dayDiff(d) > 300 ? '2-digit' : undefined }));
 const fmtFull = (d) => new Date(d).toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 const waitingH = (t) => (t.status === 'offen' ? (Date.now() - t.at) / 36e5 : 0);
-const sortKey = (t) => (t.prio === 'hoch' && t.status === 'offen' ? 0 : 1) * 1e13 + (t.status === 'offen' ? 0 : 1) * 1e12 - +t.at / 10;
+let sortMode = 'neu'; try { sortMode = localStorage.getItem('li-sort') || 'neu'; } catch (e) {}
+const sortKey = (t) => sortMode === 'neu' ? -t.at : sortKeyWichtig(t);
+const sortKeyWichtig = (t) => (t.prio === 'hoch' && t.status === 'offen' ? 0 : 1) * 1e13 + (t.status === 'offen' ? 0 : 1) * 1e12 - +t.at / 10;
 let showClosed = false; try { showClosed = localStorage.getItem('li-showclosed') === '1'; } catch (e) {}
 const FILTERS = [
   ['alle', 'Alle', (t) => t.status !== 'spam' && (showClosed || t.status !== 'abgeschlossen')],
@@ -1143,7 +1151,7 @@ function renderList() {
    <div class="boxsw"><div class="seg" role="group" aria-label="Bereich"><button data-box="anfragen" aria-pressed="${box === 'anfragen'}">Anfragen${nA ? `<em>${nA}</em>` : ''}</button><button data-box="sonstiges" aria-pressed="${box === 'sonstiges'}">Sonstiges${nS ? `<em>${nS}</em>` : ''}</button></div></div>
    <div class="search"><label class="sbox">${I.search}<input id="q" type="search" autocomplete="off" placeholder="Suchen oder @ die KI fragen" value="${esc(query)}" aria-label="Suchen"><button class="clr" id="clr" aria-label="Suche leeren" ${query ? '' : 'hidden'}>×</button></label></div>
    <div class="tfil" role="group" aria-label="Zeitraum">${['neu', 'woche', 'alt'].map((k) => `<button data-tf="${k}" aria-pressed="${tfil === k}">${I[k]}<span>${TFIL[k].l}</span><em>${sc.filter(statusF()).filter(TFIL[k].f).length}</em></button>`).join('')}</div>
-   <div class="filters">${FILTERS.filter(([k, , f]) => k !== 'gebucht' || sc.filter(f).length).map(([k, l, f]) => `<button class="chip" data-f="${k}" aria-pressed="${filter === k}">${l}<span class="n">${sc.filter(f).length}</span></button>`).join('')}${filter === 'alle' ? `<button class="chip ghostchip" id="togclosed" aria-pressed="${showClosed}" title="Abgeschlossene Anfragen unter Alle zeigen">${showClosed ? 'Abgeschlossene ausblenden' : 'Abgeschlossene einblenden'}</button>` : ''}</div>
+   <div class="filters">${FILTERS.filter(([k, , f]) => k !== 'gebucht' || sc.filter(f).length).map(([k, l, f]) => `<button class="chip" data-f="${k}" aria-pressed="${filter === k}">${l}<span class="n">${sc.filter(f).length}</span></button>`).join('')}<span class="sortseg seg" role="group" aria-label="Sortierung"><button data-sort="neu" aria-pressed="${sortMode === 'neu'}" title="Zuletzt geschriebene oder beantwortete Mail oben">Neueste zuerst</button><button data-sort="wichtig" aria-pressed="${sortMode === 'wichtig'}" title="Dringende und offene Anfragen oben">Wichtige zuerst</button></span>${filter === 'alle' ? `<button class="chip ghostchip" id="togclosed" aria-pressed="${showClosed}" title="Abgeschlossene Anfragen unter Alle zeigen">${showClosed ? 'Abgeschlossene ausblenden' : 'Abgeschlossene einblenden'}</button>` : ''}</div>
    <div class="rows" id="rows">${rowsHTML()}</div>${bulkHTML()}<div class="lgrip" id="lgrip" role="separator" aria-orientation="vertical" aria-label="Listenbreite ändern" tabindex="0"></div>`;
   bindList();
   if (focus) { const q = $('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
@@ -1228,7 +1236,7 @@ function detailHTML() {
    <h2>${esc(t.subject)}</h2>
    <div class="pills">${stPill(t)}${t.prio === 'hoch' && t.status === 'offen' ? '<span class="st st-hot">Dringend</span>' : ''}${t.studio !== 'X' ? `<span class="pill">${STUDIO[t.studio]}</span>` : ''}${t.cat ? `<span class="pill">${esc(t.cat)}</span>` : ''}</div>
    ${t.summary ? `<div class="sum"><div class="ah">${I.spark}Zusammenfassung${t.reqDate ? `<span class="sumdate">Wunschtermin ${fmtDay(t.reqDate)}</span>` : ''}</div>${esc(t.summary)}<div id="avrow">${availRow(t)}</div></div>` : !t.aiAt && !aiOff ? `<div class="sum busy"><div class="ah">${I.spark}KI liest die Anfrage …</div></div>` : ''}
-   <section class="composer top ${composerBig[t.id] ? 'big' : ''}" aria-label="Antwort"><button class="ccol" id="ccol" title="Antwortfeld verkleinern" aria-label="Antwortfeld verkleinern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14l5-5 5 5"/></svg>Kleiner</button><div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
+   <section class="composer top ${composerBig[t.id] ? 'big' : ''}" aria-label="Antwort"><button class="ccol" id="ccol" title="Antwortfeld verkleinern" aria-label="Antwortfeld verkleinern"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14l5-5 5 5"/></svg></button><div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
    <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
    <div id="dbar">${draftBarHTML(t)}</div>
    <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${Math.min(Math.max(composerH, 260), Math.round(innerHeight * 0.8))}px">${esc(drafts[t.id] || '')}</textarea>
@@ -1793,6 +1801,7 @@ document.addEventListener('click', async (e) => {
   if (b.id === 'selmode') { selMode = !selMode; selected.clear(); renderList(); return; }
   if (b.dataset.qstar) { const t2 = threads.find((x) => x.id === b.dataset.qstar); quickPatch(t2.id, { star: !t2.star }); return; }
   if (b.dataset.qdone) { const t2 = threads.find((x) => x.id === b.dataset.qdone); const st2 = t2.status === 'abgeschlossen' ? 'offen' : 'abgeschlossen'; quickPatch(t2.id, { status: st2 }, st2 === 'abgeschlossen' ? 'Erledigt' : 'Wieder offen'); return; }
+  if (b.dataset.sort) { sortMode = b.dataset.sort; try { localStorage.setItem('li-sort', sortMode); } catch (err) {} page = 0; renderList(); return; }
   if (b.id === 'togclosed') { showClosed = !showClosed; try { localStorage.setItem('li-showclosed', showClosed ? '1' : '0'); } catch (err) {} page = 0; renderList(); return; }
   if (b.dataset.qmenu) { if (rowPop?.id === b.dataset.qmenu) { rowPop = null; renderPop(); } else openPop(b.dataset.qmenu, b); return; }
   if (rowPop && b.dataset.pprio) { const t2 = threads.find((x) => x.id === rowPop.id); quickPatch(rowPop.id, { prio: t2.prio === 'hoch' ? 'normal' : 'hoch' }); return; }
