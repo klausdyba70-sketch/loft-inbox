@@ -18,15 +18,22 @@ const BASE_FACTS = `Loft Studio Cologne, Köln. Zwei Mietstudios:
 
 // Lange, gleichbleibende Anweisungen (FAQ) zwischenspeichern: schneller und günstiger
 const sys = (system) => (system && system.length > 6000 ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] : system);
+// Das Modell denkt sonst von sich aus lange nach (langsam, verbraucht alle Tokens). Für Mails nicht nötig: Nachdenken aus.
+let thinkingOff = { thinking: { type: 'disabled' } };
+async function apiCall(payload, headers, signal) {
+  const send = () => fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal, headers, body: JSON.stringify({ ...payload, ...thinkingOff }) });
+  let r = await send();
+  if (r.status === 400 && Object.keys(thinkingOff).length) {
+    const j = await r.clone().json().catch(() => ({}));
+    if (/thinking/i.test(j.error?.message || '')) { console.error('thinking:disabled abgelehnt:', j.error?.message); thinkingOff = {}; r = await send(); }
+  }
+  return r;
+}
 export async function claude({ model = MODEL_FAST, system, prompt, max_tokens = 1000, timeoutMs = 25000 }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error('ANTHROPIC_API_KEY fehlt in Netlify'), { status: 409 });
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    signal: AbortSignal.timeout(timeoutMs),
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model, max_tokens, system: sys(system), messages: [{ role: 'user', content: prompt }] }),
-  });
+  const r = await apiCall({ model, max_tokens, system: sys(system), messages: [{ role: 'user', content: prompt }] },
+    { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, AbortSignal.timeout(timeoutMs));
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error('KI: ' + (j.error?.message || 'Fehler ' + r.status)), { status: r.status === 401 ? 409 : 502 });
   const text = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('').trim();
@@ -268,11 +275,8 @@ export async function draftVariant(db, threadId, variantKey) {
 export async function* claudeStream({ model = MODEL_WRITE, system, prompt, max_tokens = 1500, info = {} }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error('ANTHROPIC_API_KEY fehlt in Netlify'), { status: 409 });
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', accept: 'text/event-stream' },
-    body: JSON.stringify({ model, max_tokens, system: sys(system), stream: true, messages: [{ role: 'user', content: prompt }] }),
-  });
+  const r = await apiCall({ model, max_tokens, system: sys(system), stream: true, messages: [{ role: 'user', content: prompt }] },
+    { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', accept: 'text/event-stream' });
   if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error('KI: ' + (j.error?.message || 'Fehler ' + r.status)); }
   info.types = new Set();
   const reader = r.body.getReader(), dec = new TextDecoder();
