@@ -3,7 +3,7 @@ import { availabilityForPrompt } from './cal.mjs';
 import { MAILBOX, admin } from './core.mjs';
 
 const MODEL_FAST = process.env.AI_MODEL_FAST || 'claude-haiku-5-5';
-const MODEL_WRITE = process.env.AI_MODEL_WRITE || 'claude-haiku-5-5';
+const MODEL_WRITE = process.env.AI_MODEL_WRITE || 'claude-sonnet-5-5';
 const NOTION_PAGE = process.env.NOTION_PAGE_ID || '1f2dc5aac79d80d38d23d7639ee9be8d';
 export const CATS = ['Verfügbarkeit', 'Preis', 'Besichtigung', 'Buchung', 'Workshop / Seminar', 'Event', 'Ausstattung', 'Sonstiges'];
 const WD = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
@@ -242,6 +242,7 @@ Länge ohne Änderungswunsch: höchstens etwa 100 Wörter ohne Signatur. Nach de
 Regeln:
 - Nutze die FAQ unten. Nenne Preise, Zeiten und Konditionen genau so, wie sie dort stehen. Erfinde nichts. Fehlt eine Angabe, setze einen Platzhalter in eckigen Klammern, z. B. [Preis Tagesmiete].
 - Verfügbarkeit: Steht in der Anfrage ein Kalenderstand, nutze ihn. Ist der Tag belegt: ein Satz ("Am Sonntag, 8.11. ist das Factory Loft leider schon belegt.") und direkt zwei Alternativtermine aus dem Kalenderstand anbieten. Keine weitere Erklärung, nichts zu Reservierung. Ist der Tag frei: ein Satz, dass er aktuell noch frei ist. Nenne nie, wer gebucht hat. Ohne Kalenderstand nichts zusagen, sondern [Verfügbarkeit prüfen] setzen.
+- Zeiten und Preise genau: Übernimm Uhrzeiten und Dauer exakt so, wie der Kunde sie nennt, erfinde keine anderen. Rechne die Stunden selbst nach (z. B. 9 bis 16 Uhr = 7 Stunden). Passen genannte Dauer und Uhrzeit nicht zusammen, weise kurz darauf hin. Nimm den Preis exakt aus der Preistabelle der FAQ für genau diese Stundenzahl und Nutzungsart. Gibt es die Stundenzahl nicht als Paket, nenne das nächstgrößere Paket.
 - Anrede einheitlich: Du-Form mit Vornamen ("Hallo Lena") oder Sie-Form mit Nachnamen ("Hallo Frau Brandt"), nie gemischt.
 - Anrede: übernimm Du oder Sie vom Kunden. Ist das unklar, nimm "${st.tone === 'sie' ? 'Sie' : 'Du'}".
 - Keine Gedankenstriche, keine Emojis, kein Markdown, keine Betreffzeile.

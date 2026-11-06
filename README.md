@@ -58,7 +58,7 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 | `MS_CLIENT_SECRET` | Wert des geheimen Clientschlüssels der Microsoft-App "Loft Inbox" | **ja** |
 | `TOKEN_ENC_KEY` | Zufälliger Text mit mindestens 40 Zeichen aus dem Passwortmanager. Verschlüsselt den Microsoft-Zugang in der Datenbank | **ja** |
 
-KI: `ANTHROPIC_API_KEY` (geheim) und `NOTION_TOKEN` (geheim). Optional `AI_MODEL_FAST` / `AI_MODEL_WRITE` (Standard `claude-haiku-5-5`) und `NOTION_PAGE_ID`.
+KI: `ANTHROPIC_API_KEY` (geheim) und `NOTION_TOKEN` (geheim). Optional `AI_MODEL_FAST` (Standard `claude-haiku-5-5`, Einstufen und Fragen) und `AI_MODEL_WRITE` (Standard `claude-sonnet-5-5`, Antworten) und `NOTION_PAGE_ID`.
 
 Kalender (nur lesen): `GCAL_PENTHOUSE_ICS` und `GCAL_FACTORY_ICS` (geheim), jeweils die "Privatadresse im iCal-Format" des Google-Kalenders. Über diese Adressen kann die App keine Termine anlegen oder ändern.
 
