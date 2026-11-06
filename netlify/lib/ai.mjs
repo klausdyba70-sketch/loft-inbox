@@ -183,8 +183,9 @@ export const VARIANTS = [
   { key: 'rueckfrage', hint: 'Rückfrage oder Alternative: fragt gezielt nach fehlenden Angaben (Datum, Uhrzeit, Personen, Art der Produktion) oder bietet eine Alternative an, falls etwas unklar oder nicht möglich ist.' },
 ];
 async function settingsRow(db) {
-  const { data } = await db.from('settings').select('tone,signature').eq('id', true).maybeSingle();
-  return data || { tone: 'du', signature: 'Viele Grüße\nKlaus\nLoft Studio Cologne' };
+  let { data, error } = await db.from('settings').select('tone,signature,rules').eq('id', true).maybeSingle();
+  if (error) ({ data } = await db.from('settings').select('tone,signature').eq('id', true).maybeSingle()); // Spalte rules noch nicht angelegt
+  return { tone: 'du', signature: 'Viele Grüße\nKlaus\nLoft Studio Cologne', rules: '', ...(data || {}) };
 }
 async function styleSamples(db, threadId) {
   const { data } = await db.from('messages').select('body_text,thread_id').eq('direction', 'out').neq('thread_id', threadId).order('sent_at', { ascending: false }).limit(6);
@@ -194,7 +195,7 @@ export async function draftPrompt(db, threadId, variantKey) {
   const v = VARIANTS.find((x) => x.key === variantKey) || VARIANTS[0];
   const [{ t, msgs }, st, samples] = await Promise.all([loadThread(db, threadId), settingsRow(db), styleSamples(db, threadId)]);
   const [kb, cal] = await Promise.all([
-    knowledge(db, t.subject + ' ' + msgs.slice(-4).map((m) => m.body_text || '').join(' ')),
+    knowledge(db, t.subject + ' ' + (st.rules || '') + ' ' + msgs.slice(-4).map((m) => m.body_text || '').join(' ')),
     availabilityForPrompt(t.requested_date, t.studio).catch(() => ''),
   ]);
   const lastIn = [...msgs].reverse().find((m) => m.direction === 'in');
@@ -205,7 +206,7 @@ Regeln:
 ${cal ? `- Kalenderstand siehe unten. Ist der Tag frei: schreibe, dass er Stand jetzt noch frei ist, aber erst mit Bestätigung fest reserviert ist. Ist er belegt: sag das freundlich und biete die freien Tage in der Nähe an. Nenne nie, wer gebucht hat oder was der Termin ist.` : `- Bestätige keine Verfügbarkeit als sicher, außer der Verlauf sagt es. Formuliere sonst z. B. "Ich schaue gleich in den Kalender" oder setze [Verfügbarkeit prüfen].`}
 - Anrede: übernimm Du oder Sie vom Kunden. Ist das unklar, nimm "${st.tone === 'sie' ? 'Sie' : 'Du'}".
 - Keine Gedankenstriche, keine Emojis, kein Markdown, keine Betreffzeile.
-- Beginne mit einer passenden Begrüßung mit Namen, ende mit genau dieser Signatur:
+${st.rules ? `- Hausregeln von Klaus, immer befolgen (gehen allgemeinen Regeln vor):\n${st.rules}\n` : ''}- Beginne mit einer passenden Begrüßung mit Namen, ende mit genau dieser Signatur:
 ${st.signature}
 
 Wissen:
