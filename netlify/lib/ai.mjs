@@ -93,7 +93,7 @@ export async function refreshKnowledge(db, force = false) {
   const token = process.env.NOTION_TOKEN;
   if (!token) return { ok: false, reason: 'NOTION_TOKEN fehlt in Netlify' };
   const { data: k } = await db.from('knowledge').select('synced_at').eq('id', NOTION_PAGE).maybeSingle();
-  if (!force && k && Date.now() - new Date(k.synced_at).getTime() < 6 * 36e5) return { ok: true, synced_at: k.synced_at };
+  if (!force && k && Date.now() - new Date(k.synced_at).getTime() < 7 * 24 * 36e5) return { ok: true, synced_at: k.synced_at };
   try {
     const lines = await notionBlocks(NOTION_PAGE, token, Date.now() + 7000);
     const content = lines.join('\n').replace(/\n{3,}/g, '\n\n').slice(0, 60000);
