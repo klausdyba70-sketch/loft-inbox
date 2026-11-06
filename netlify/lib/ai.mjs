@@ -1,6 +1,6 @@
 // KI für die Loft Inbox: Einstufung, Antwortvorschläge, Verfeinern, Fragen, Testmodus
 import { availabilityForPrompt } from './cal.mjs';
-import { MAILBOX } from './core.mjs';
+import { MAILBOX, admin } from './core.mjs';
 
 const MODEL_FAST = process.env.AI_MODEL_FAST || 'claude-haiku-5-5';
 const MODEL_WRITE = process.env.AI_MODEL_WRITE || 'claude-haiku-5-5';
@@ -18,6 +18,23 @@ const BASE_FACTS = `Loft Studio Cologne, Köln. Zwei Mietstudios:
 
 // Lange, gleichbleibende Anweisungen (FAQ) zwischenspeichern: schneller und günstiger
 const sys = (system) => (system && system.length > 6000 ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] : system);
+// ---------- Kosten mitschreiben (Preise in US-Dollar pro 1 Mio. Tokens, Stand Nov. 2026) ----------
+const PRICES = {
+  haiku: { in: 0.10, out: 0.50, cw: 0.125, cr: 0.01, inBig: 0.50, outBig: 2.50, cwBig: 0.625, crBig: 0.05 },
+  sonnet: { in: 2.00, out: 10.00, cw: 2.50, cr: 0.10 },
+  opus: { in: 5.00, out: 25.00, cw: 6.25, cr: 0.50 },
+};
+export function costUsd(model, u = {}) {
+  const p = PRICES[/sonnet/.test(model) ? 'sonnet' : /opus/.test(model) ? 'opus' : 'haiku'];
+  const i = u.input_tokens || 0, o = u.output_tokens || 0, cw = u.cache_creation_input_tokens || 0, cr = u.cache_read_input_tokens || 0;
+  const big = p.inBig && i + cw + cr > 100000; // Haiku: über 100k Tokens Prompt gilt der höhere Preis
+  return (i * (big ? p.inBig : p.in) + o * (big ? p.outBig : p.out) + cw * (big ? p.cwBig : p.cw) + cr * (big ? p.crBig : p.cr)) / 1e6;
+}
+export function logUsage(model, kind, u) {
+  if (!u) return Promise.resolve();
+  return admin().from('ai_usage').insert({ model, kind, input: u.input_tokens || 0, output: u.output_tokens || 0, cache_write: u.cache_creation_input_tokens || 0, cache_read: u.cache_read_input_tokens || 0, cost_usd: costUsd(model, u) })
+    .then(({ error }) => { if (error) console.error('ai_usage:', error.message); }, (e) => console.error('ai_usage:', e.message));
+}
 // Das Modell denkt sonst von sich aus lange nach (langsam, verbraucht alle Tokens). Für Mails nicht nötig: Nachdenken aus.
 let thinkingOff = { thinking: { type: 'disabled' } };
 async function apiCall(payload, headers, signal) {
@@ -29,13 +46,14 @@ async function apiCall(payload, headers, signal) {
   }
   return r;
 }
-export async function claude({ model = MODEL_FAST, system, prompt, max_tokens = 1000, timeoutMs = 25000 }) {
+export async function claude({ model = MODEL_FAST, system, prompt, max_tokens = 1000, timeoutMs = 25000, kind = 'sonstiges' }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error('ANTHROPIC_API_KEY fehlt in Netlify'), { status: 409 });
   const r = await apiCall({ model, max_tokens, system: sys(system), messages: [{ role: 'user', content: prompt }] },
     { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, AbortSignal.timeout(timeoutMs));
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error('KI: ' + (j.error?.message || 'Fehler ' + r.status)), { status: r.status === 401 ? 409 : 502 });
+  if (r.ok) await logUsage(j.model || model, kind, j.usage);
   const text = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('').trim();
   if (!text) { // genau sagen, warum nichts kam
     const why = `ohne Streaming: Ende ${j.stop_reason || '?'}, Teile ${(j.content || []).map((c) => c.type).join('+') || 'keine'}, Modell ${j.model || model}, Eingabe ${j.usage?.input_tokens ?? '?'} Tokens, Ausgabe ${j.usage?.output_tokens ?? '?'}`;
@@ -172,7 +190,7 @@ Verlauf (neueste zuletzt):
 ${convoText(msgs)}
 
 JSON: {"kind":"anfrage|sonstiges|spam","spam_score":0,"studio":"P|F|X","category":null,"requested_date":null,"priority":"normal","summary":""}`;
-  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 400 }));
+  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 400, kind: 'Einstufen' }));
   const kind = ['anfrage', 'sonstiges', 'spam'].includes(r.kind) ? r.kind : 'anfrage';
   const spam = Math.max(0, Math.min(100, Math.round(+r.spam_score || 0)));
   const date = /^\d{4}-\d{2}-\d{2}$/.test(r.requested_date || '') ? r.requested_date : null;
@@ -277,11 +295,11 @@ export async function saveDraft(db, threadId, d, raw) {
 }
 export async function draftVariant(db, threadId, variantKey) {
   const d = await draftPrompt(db, threadId, variantKey);
-  const raw = await claude({ model: MODEL_WRITE, system: d.system, prompt: d.prompt, max_tokens: 1500 });
+  const raw = await claude({ model: MODEL_WRITE, system: d.system, prompt: d.prompt, max_tokens: 1500, kind: 'Antwort' });
   return saveDraft(db, threadId, d, raw);
 }
 // Wort für Wort: liefert Text-Stücke, sobald die KI sie schreibt
-export async function* claudeStream({ model = MODEL_WRITE, system, prompt, max_tokens = 1500, info = {} }) {
+export async function* claudeStream({ model = MODEL_WRITE, system, prompt, max_tokens = 1500, info = {}, kind = 'Antwort' }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error('ANTHROPIC_API_KEY fehlt in Netlify'), { status: 409 });
   const r = await apiCall({ model, max_tokens, system: sys(system), stream: true, messages: [{ role: 'user', content: prompt }] },
@@ -309,11 +327,12 @@ export async function* claudeStream({ model = MODEL_WRITE, system, prompt, max_t
     while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); yield* handle(line); }
   }
   if (buf) yield* handle(buf);
+  await logUsage(info.model || model, kind, info.usage);
 }
 
 export async function refineText(text, instruction) {
   const system = 'Du überarbeitest E-Mail-Entwürfe von Loft Studio Cologne. Behalte Inhalt, Fakten, Platzhalter in eckigen Klammern und die Signatur. Keine Gedankenstriche, kein Markdown. Gib nur den fertigen Mailtext zurück.';
-  return claude({ model: MODEL_FAST, system, prompt: `Anweisung: ${instruction}\n\nEntwurf:\n${text}`, max_tokens: 900 });
+  return claude({ model: MODEL_FAST, system, prompt: `Anweisung: ${instruction}\n\nEntwurf:\n${text}`, max_tokens: 900, kind: 'Ändern' });
 }
 
 // ---------- Fragen an die eigenen Anfragen ----------
@@ -336,7 +355,7 @@ export async function askInbox(db, question) {
   const ctx = list.map((x) => `[${x.id}] ${x.last_message_at.slice(0, 10)} · ${x.contacts?.name || x.contacts?.email} · ${x.subject} · ${x.status}${x.summary ? ' · ' + x.summary : ''}`).join('\n');
   const system = 'Du beantwortest Fragen von Klaus zu seinen Studio-Anfragen. Antworte kurz auf Deutsch, nur aus den Einträgen unten. Wenn nichts passt, sag das ehrlich. Keine Gedankenstriche. Antworte nur mit JSON.';
   const prompt = `${todayLine()}\nFrage: ${question}\n\nEinträge:\n${ctx}\n\nJSON: {"answer":"kurze Antwort","ids":["IDs der passenden Einträge, wichtigste zuerst"]}`;
-  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 500 }));
+  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 500, kind: 'Frage' }));
   const ids = (r.ids || []).filter((id) => found.has(id) || list.some((x) => x.id === id)).slice(0, 12);
   return { answer: String(r.answer || ''), ids };
 }
@@ -356,7 +375,7 @@ export async function generateTestInquiry() {
   const scenario = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
   const system = 'Du erfindest realistische, deutschsprachige Kunden-E-Mails an Loft Studio Cologne für Testzwecke. Die Person ist frei erfunden. Schreibe natürlich, mit Begrüßung und kurzer Signatur, gern mit kleinen Eigenheiten. Antworte nur mit JSON.';
   const prompt = `${todayLine()}\nSzenario: ${scenario}\nJSON: {"name":"Vor- und Nachname","email":"name@example.com (Domain muss example.com sein)","subject":"Betreff","body":"Mailtext"}`;
-  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 700 }));
+  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 700, kind: 'Testmodus' }));
   const local = String(r.email || 'test').split('@')[0].toLowerCase().replace(/[^a-z0-9.-]/g, '') || 'test';
   return { name: String(r.name || 'Test Kundin').slice(0, 80), email: `${local}.${Math.random().toString(36).slice(2, 6)}@example.com`, subject: String(r.subject || 'Anfrage').slice(0, 200), body: String(r.body || '') };
 }
@@ -366,7 +385,7 @@ export async function generateTestReply(db, threadId) {
   const mood = moods[Math.floor(Math.random() * moods.length)];
   const system = `Du spielst die erfundene Kundin/den erfundenen Kunden ${t.contacts?.name} in einem Mailverlauf mit Loft Studio Cologne. Antworte realistisch und kurz auf die letzte Nachricht des Studios, auf Deutsch. Antworte nur mit JSON.`;
   const prompt = `Verlauf:\n${convoText(msgs, 8)}\n\nDeine Reaktion: Du ${mood}.\nJSON: {"body":"Mailtext mit Begrüßung und Gruß"}`;
-  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 500 }));
+  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 500, kind: 'Testmodus' }));
   return String(r.body || '');
 }
 export { MAILBOX };

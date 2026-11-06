@@ -919,6 +919,15 @@ button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
 .composer.top .closed{padding:2px 0 10px}
 @media (max-width:760px){.composer.top{padding:12px 12px 4px!important}}
 .nav.navicon{padding:12px 0}
+
+.costgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:6px 0 10px}
+@media (max-width:560px){.costgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.costgrid>div{background:var(--sunk);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.costgrid small{font-size:12px;color:var(--mute)}
+.costgrid b{font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:-.02em}
+.costkinds{display:flex;flex-direction:column;gap:4px;padding-bottom:8px}
+.costkinds>div{display:flex;align-items:baseline;gap:8px;font-size:13.5px}
+.costkinds span{flex:1;min-width:0}.costkinds small{color:var(--mute);font-size:12px}.costkinds b{font-weight:600;min-width:70px;text-align:right}
 </style>
 </head>
 <body data-view="auth">
@@ -1527,6 +1536,7 @@ async function renderSettings() {
    <section class="scard"><h3>Darstellung</h3><div class="srow"><div class="stx"><b>Erscheinungsbild</b><small>System folgt der Einstellung deines Geräts</small></div><div class="seg">${th('light')}${th('dark')}${th('system')}</div></div></section>
    <section class="scard" id="mailcard"><h3>Postfach</h3><div class="srow"><div class="stx"><b>Lade Status …</b></div></div></section>
    <section class="scard" id="aicard"><h3>KI</h3><div class="srow"><div class="stx"><b>Lade Status …</b></div></div></section>
+   <section class="scard" id="costcard"><h3>KI-Kosten</h3><div class="srow"><div class="stx"><b>Lade …</b></div></div></section>
    <section class="scard" id="calcard"><h3>Kalender</h3><div class="srow"><div class="stx"><b>Lade Status …</b></div></div></section>
    <section class="scard" id="replycard"><h3>Antworten</h3><div class="srow"><div class="stx"><b>Lade …</b></div></div></section>
    <section class="scard"><h3>Testmodus</h3>
@@ -1538,7 +1548,7 @@ async function renderSettings() {
   const q = new URLSearchParams(location.hash.split('?')[1] || '');
   if (q.get('ms') === 'ok') { toast('Microsoft verbunden'); history.replaceState(null, '', '#einstellungen'); }
   else if (q.get('ms') === 'fehler') { toast('Microsoft: ' + (q.get('grund') || 'Fehler')); history.replaceState(null, '', '#einstellungen'); }
-  fillCalCard();
+  fillCalCard(); fillCostCard();
   let s; try { s = await api('/api/status'); } catch (e) { s = { error: e.message }; }
   const ac = $('#aicard');
   if (ac) { const ai = s.ai || {}; ac.innerHTML = `<h3>KI</h3>
@@ -1697,6 +1707,27 @@ function calForThread(t) {
   if (!t) return;
   const k = (t.reqDate || isoOf(new Date())).slice(0, 7);
   if (calNeeds([k])) ensureCal([k]).then(() => { if (current?.id === t.id) fillAvail(); });
+}
+async function fillCostCard() {
+  const c = $('#costcard'); if (!c) return;
+  const now = new Date(), m0 = new Date(now.getFullYear(), now.getMonth(), 1), p0 = new Date(now.getFullYear(), now.getMonth() - 1, 1), d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const rows = [];
+  for (let from = 0; from < 50000; from += 1000) {
+    const { data, error } = await sb.from('ai_usage').select('at,kind,model,cost_usd,input,output,cache_read').gte('at', p0.toISOString()).order('at', { ascending: false }).range(from, from + 999);
+    if (error) { c.innerHTML = `<h3>KI-Kosten</h3><div class="srow"><div class="stx"><b>Noch nicht eingerichtet</b><small class="errline">Erst die SQL-Datei 20261106000005_ai_usage.sql in Supabase ausführen.</small></div></div>`; return; }
+    rows.push(...data); if (data.length < 1000) break;
+  }
+  const sum = (f) => rows.filter(f).reduce((a, r) => a + Number(r.cost_usd || 0), 0);
+  const fmt = (v) => v < 1 ? (v * 100).toLocaleString('de-DE', { maximumFractionDigits: v < 0.01 ? 2 : 1 }) + ' Cent' : v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $';
+  const inM = (r) => new Date(r.at) >= m0, inP = (r) => new Date(r.at) >= p0 && new Date(r.at) < m0;
+  const month = rows.filter(inM), kinds = {};
+  for (const r of month) { const k = r.kind || 'sonstiges'; kinds[k] = kinds[k] || { n: 0, v: 0 }; kinds[k].n++; kinds[k].v += Number(r.cost_usd || 0); }
+  const ans = kinds['Antwort'];
+  const days = now.getDate(), monthV = sum(inM), proj = (monthV / days) * new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  c.innerHTML = `<h3>KI-Kosten</h3>
+   <div class="costgrid"><div><small>Heute</small><b>${fmt(sum((r) => new Date(r.at) >= d0))}</b></div><div><small>${now.toLocaleDateString('de-DE', { month: 'long' })}</small><b>${fmt(monthV)}</b></div><div><small>Hochgerechnet</small><b>${fmt(proj)}</b></div><div><small>${p0.toLocaleDateString('de-DE', { month: 'long' })}</small><b>${fmt(sum(inP))}</b></div></div>
+   ${Object.keys(kinds).length ? `<div class="costkinds">${Object.entries(kinds).sort((a, b) => b[1].v - a[1].v).map(([k, x]) => `<div><span>${esc(k)}</span><small>${x.n}×</small><b>${fmt(x.v)}</b></div>`).join('')}</div>` : '<p class="hint2">Noch keine KI-Aufrufe in diesem Monat.</p>'}
+   <p class="hint2">${ans ? `Eine Antwort kostet im Schnitt ${fmt(ans.v / ans.n)}. ` : ''}Berechnet aus den Token-Zahlen jedes Aufrufs mit den Listenpreisen von Anthropic in US-Dollar. Die Rechnung von Anthropic ist maßgeblich.</p>`;
 }
 async function fillCalCard() {
   const today = isoOf(new Date()), k = today.slice(0, 7);
