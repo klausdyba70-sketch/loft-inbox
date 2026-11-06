@@ -911,6 +911,13 @@ button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
 .mail.out .mmeta .n b{color:var(--primary)}
 .mail.in.older{border-left:4px solid var(--line)}
 @media (max-width:760px){.mail.older{margin-left:14px}}
+
+/* Antwortfeld oben im Verlauf (wie eine Karte), Verlauf darunter */
+.composer.top{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px 4px!important;margin:4px 0 6px;flex:none}
+.composer.top .cinner{max-width:none}
+.composer.top .grip{margin:6px 0 0;height:14px}
+.composer.top .closed{padding:2px 0 10px}
+@media (max-width:760px){.composer.top{padding:12px 12px 4px!important}}
 </style>
 </head>
 <body data-view="auth">
@@ -1197,18 +1204,19 @@ function detailHTML() {
    <div class="mkrow" role="group" aria-label="Markierung">${`<button class="swb" data-prio="toggle" aria-pressed="${t.prio === 'hoch'}" title="Dringend" style="--c:var(--red)"><i></i><span>Dringend</span></button>`}${MARKS.map((c) => `<button class="swb" data-c="${c}" aria-pressed="${t.color === c}" title="${COLOR_NAMES[c]}" style="--c:${COLORS[c]}"><i></i><span>${COLOR_NAMES[c]}</span></button>`).join('')}${t.color ? '<button class="swb clear" data-c="none" title="Markierung entfernen">×</button>' : ''}</div>
    <div class="pills">${stPill(t)}${t.prio === 'hoch' && t.status === 'offen' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color ? `<span class="pill"><span class="d" style="--c:${COLORS[t.color]}"></span>${COLOR_NAMES[t.color]}</span>` : ''}${t.studio !== 'X' ? `<span class="pill">${STUDIO[t.studio]}</span>` : ''}${t.cat ? `<span class="pill">${esc(t.cat)}</span>` : ''}</div>
    ${t.summary ? `<div class="sum"><div class="ah">${I.spark}Zusammenfassung${t.reqDate ? `<span class="sumdate">Wunschtermin ${fmtDay(t.reqDate)}</span>` : ''}</div>${esc(t.summary)}<div id="avrow">${availRow(t)}</div></div>` : !t.aiAt && !aiOff ? `<div class="sum busy"><div class="ah">${I.spark}KI liest die Anfrage …</div></div>` : ''}
-   <div class="vbar"><span>Verlauf · ${msgs.length} ${msgs.length === 1 ? 'Nachricht' : 'Nachrichten'}</span>${msgs.length > 1 ? `<div class="seg ord"><button data-ord="new" aria-pressed="${msgOrder === 'new'}">Neueste oben</button><button data-ord="old" aria-pressed="${msgOrder === 'old'}">Älteste oben</button></div>` : ''}</div>
-   <div class="msgs">${(() => { const ty = testTyping[t.id] ? `<div class="mail typing"><span>${esc(t.name)} schreibt</span><span class="dots"><i></i><i></i><i></i></span></div>` : ''; const ms = msgs.length ? mails.join('') : '<div class="empty">Lade …</div>'; return msgOrder === 'new' ? ty + ms : ms + ty; })()}</div>
-  </div></div>
-  <footer class="composer">${closed ? '' : '<div class="grip" id="grip" role="separator" aria-orientation="horizontal" aria-label="Antwortfeld vergrößern oder verkleinern" tabindex="0"><i></i></div>'}<div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
+   <section class="composer top" aria-label="Antwort"><div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
    <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
    <div id="dbar">${draftBarHTML(t)}</div>
-   <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${Math.min(composerH, Math.round(innerHeight * 0.5))}px">${esc(drafts[t.id] || '')}</textarea>
+   <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${Math.min(composerH, Math.round(innerHeight * 0.8))}px">${esc(drafts[t.id] || '')}</textarea>
    ${aiOff ? '' : `<form class="aiedit" id="aiedit" autocomplete="off"><span class="ailbl">${I.spark}</span><input id="aiins" enterkeyhint="send" placeholder="Was soll die KI ändern? z. B. Overtime-Preis nennen, kürzer, Sie-Form" aria-label="Änderungswunsch an die KI"><button type="submit" class="mini">Ändern</button></form>`}
    <div class="cbar"><small class="saved" id="saved">${drafts[t.id] ? 'Entwurf gespeichert' : ''}</small><span class="sp" style="flex:1"></span>
     <button class="icon" id="discard" title="Entwurf verwerfen" aria-label="Entwurf verwerfen" ${drafts[t.id] ? '' : 'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg></button>
     <div class="sendsplit">${sendMenu ? `<div class="smenu" role="menu"><h4>Senden und festlegen als</h4>${SEND_AS.map(([k, l, sub]) => `<button role="menuitem" data-sendas="${k}"><b>${l}</b><small>${sub}</small></button>`).join('')}</div>` : ''}
-     <button class="send" id="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>Senden</button><button class="send caret" id="sendmenu" aria-label="Senden und Status festlegen" aria-expanded="${sendMenu}">▾</button></div></div>`}</div></footer></div>${sideHTML(t)}`;
+     <button class="send" id="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>Senden</button><button class="send caret" id="sendmenu" aria-label="Senden und Status festlegen" aria-expanded="${sendMenu}">▾</button></div></div>`}</div>${closed ? '' : '<div class="grip" id="grip" role="separator" aria-orientation="horizontal" aria-label="Antwortfeld vergrößern oder verkleinern" tabindex="0"><i></i></div>'}</section>
+   <div class="vbar"><span>Verlauf · ${msgs.length} ${msgs.length === 1 ? 'Nachricht' : 'Nachrichten'}</span>${msgs.length > 1 ? `<div class="seg ord"><button data-ord="new" aria-pressed="${msgOrder === 'new'}">Neueste oben</button><button data-ord="old" aria-pressed="${msgOrder === 'old'}">Älteste oben</button></div>` : ''}</div>
+   <div class="msgs">${(() => { const ty = testTyping[t.id] ? `<div class="mail typing"><span>${esc(t.name)} schreibt</span><span class="dots"><i></i><i></i><i></i></span></div>` : ''; const ms = msgs.length ? mails.join('') : '<div class="empty">Lade …</div>'; return msgOrder === 'new' ? ty + ms : ms + ty; })()}</div>
+  </div></div>
+</div>${sideHTML(t)}`;
 }
 function frameDoc(html, imgs, quote) {
   const csp = `default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data: cid:${imgs ? ' https: http:' : ''};`;
@@ -1354,7 +1362,7 @@ let sendMenu = false, rowPop = null;
 let msgOrder = 'new'; try { msgOrder = localStorage.getItem('li-order') || 'new'; } catch (e) {}
 try { Object.assign(drafts, JSON.parse(localStorage.getItem('li-drafts') || '{}')); } catch (e) {}
 const saveDrafts = () => { try { localStorage.setItem('li-drafts', JSON.stringify(Object.fromEntries(Object.entries(drafts).filter(([, v]) => v)))); } catch (e) {} };
-function scrollNewest() { const sc = $('#dscroll'); if (!sc) return; if (msgOrder === 'new') { const m = $('.msgs'); sc.scrollTop = m ? Math.max(0, m.offsetTop - 80) : 0; } else sc.scrollTop = 1e9; }
+function scrollNewest() { const sc = $('#dscroll'); if (!sc) return; sc.scrollTop = msgOrder === 'new' ? 0 : 1e9; }
 // Vor dem Senden immer nachfragen
 function askSend(as) {
   const t = current, body = ($('#draft')?.value || '').trim(); if (!t) return; if (!body) return toast('Die Antwort ist leer.');
@@ -1445,14 +1453,14 @@ function startDrag(e, el, onMove, onEnd) {
 document.addEventListener('pointerdown', (e) => {
   const g = e.target.closest('#grip'); if (!g) return;
   const ta = $('#draft'); if (!ta) return;
-  const y0 = e.clientY, h0 = ta.offsetHeight, maxH = Math.max(160, Math.min(innerHeight * 0.5, ($('#detail').clientHeight || 600) * 0.6));
-  startDrag(e, g, (ev) => { composerH = Math.round(Math.min(maxH, Math.max(56, h0 + (y0 - ev.clientY)))); ta.style.height = composerH + 'px'; },
+  const y0 = e.clientY, h0 = ta.offsetHeight, maxH = Math.max(200, innerHeight * 0.8);
+  startDrag(e, g, (ev) => { composerH = Math.round(Math.min(maxH, Math.max(56, h0 + (ev.clientY - y0)))); ta.style.height = composerH + 'px'; },
     () => { try { localStorage.setItem('li-composer-h', composerH); } catch (err) {} });
 });
 document.addEventListener('keydown', (e) => {
   if (e.target.id !== 'grip' || !['ArrowUp', 'ArrowDown'].includes(e.key)) return;
   const ta = $('#draft'); if (!ta) return; e.preventDefault();
-  composerH = Math.max(56, Math.min(600, ta.offsetHeight + (e.key === 'ArrowUp' ? 40 : -40))); ta.style.height = composerH + 'px';
+  composerH = Math.max(56, Math.min(900, ta.offsetHeight + (e.key === 'ArrowDown' ? 40 : -40))); ta.style.height = composerH + 'px';
   try { localStorage.setItem('li-composer-h', composerH); } catch (err) {}
 });
 
