@@ -855,6 +855,11 @@ mark{background:#f1dfa6}
 .callegend .dt.no{visibility:visible;box-shadow:inset 0 0 0 1px var(--line);background:transparent}
 .dside .callegend{flex-direction:column;gap:5px;margin:8px 0 0;font-size:12px}
 .halfgrid+.calday,.callegend+.halfgrid{margin-top:4px}
+
+.mmeta .pv{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
+.mhead .mcol{margin-left:auto;color:var(--mute);font-size:12px;flex:none;padding:2px 4px}
+.vbar .ord{font-size:12px}.vbar .ord button{font-size:12px;height:28px;padding:0 10px;text-transform:none;letter-spacing:0}
 </style>
 </head>
 <body data-view="auth">
@@ -1109,16 +1114,17 @@ function detailHTML() {
   const closed = t.status === 'spam' || t.status === 'abgeschlossen';
   const firstIn = msgs.findIndex((m) => m.direction === 'in'), last = msgs.length - 1;
   const mails = msgs.map((m, i) => {
-    const key = t.id + i, open = i === firstIn || i === last || expanded[key];
+    const key = t.id + i, open = expanded[key] ?? (i === last);
     const who = m.direction === 'in' ? t.name : 'Klaus · Loft Studio Cologne';
-    const head = `<span class="mmeta"><span class="n"><b>${esc(who)}</b><time>${fmtFull(m.sent_at)}</time></span><span class="to">an ${esc(m.direction === 'in' ? MAILBOX : t.email)}</span>${open ? '' : `<span class="pv">${esc(m.body_text.replace(/\s+/g, ' ').slice(0, 100))}</span>`}${i === firstIn ? '<span class="tagfirst">Erstanfrage</span>' : ''}</span>`;
+    const head = `<span class="mmeta"><span class="n"><b>${esc(who)}</b><time>${fmtFull(m.sent_at)}</time></span><span class="to">an ${esc(m.direction === 'in' ? MAILBOX : t.email)}</span>${open ? '' : `<span class="pv">${esc(m.body_text.replace(/\s+/g, ' ').slice(0, 260))}</span>`}${i === firstIn ? '<span class="tagfirst">Erstanfrage</span>' : ''}</span>`;
     const av = avatar({ name: m.direction === 'in' ? t.name : 'Klaus Dyba' }, false);
     if (!open) return `<div class="mail"><button class="mhead" data-exp="${key}">${av}${head}</button></div>`;
     const mode = viewMode[m.id] || (m.body_html || m.graph_id ? 'html' : 'text');
     const tools = m.body_html || m.graph_id ? `<div class="mtools"><div class="seg"><button data-vm="${m.id}:html" aria-pressed="${mode === 'html'}">Original</button><button data-vm="${m.id}:text" aria-pressed="${mode === 'text'}">Text</button></div>${mode === 'html' ? `<button class="mini" data-imgs="${m.id}">${showImgs[m.id] ? 'Bilder aus' : 'Bilder laden'}</button><button class="mini" data-quote="${m.id}">${showQuote[m.id] ? 'Verlauf aus' : 'Verlauf'}</button>` : ''}</div>` : '';
     const body = mode === 'html' ? (m.body_html ? `<iframe class="mframe" data-mid="${m.id}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="E-Mail"></iframe>` : `<div class="mbody mload">Original wird geladen …</div>`) : `<div class="mbody">${esc(m.body_text)}</div>`;
-    return `<div class="mail ${i === firstIn ? 'first' : ''}"><div class="mhead">${av}${head}</div>${tools}${body}</div>`;
-  }).join('');
+    return `<div class="mail ${i === firstIn ? 'first' : ''}"><button class="mhead" data-col="${key}" title="Zuklappen">${av}${head}<span class="mcol" aria-hidden="true">▴</span></button>${tools}${body}</div>`;
+  });
+  if (msgOrder === 'new') mails.reverse();
   return `<div class="dmain"><header class="dh"><button class="icon back" id="back" aria-label="Zurück">${I.back}</button>${avatar(t)}
    <div class="dh-t"><b>${esc(t.name)}</b><small>${esc(t.email)}</small></div>
    <button class="icon ${t.star ? 'star-on' : ''}" id="star" aria-label="Wichtig" title="Wichtig">${I.star(t.star)}</button>
@@ -1129,8 +1135,8 @@ function detailHTML() {
    <div class="mkrow" role="group" aria-label="Markierung">${Object.keys(COLORS).map((c) => `<button class="swb" data-c="${c}" aria-pressed="${t.color === c}" title="${COLOR_NAMES[c]}" style="--c:${COLORS[c]}"><i></i><span>${COLOR_NAMES[c]}</span></button>`).join('')}${t.color ? '<button class="swb clear" data-c="none" title="Markierung entfernen">×</button>' : ''}</div>
    <div class="pills">${stPill(t)}${t.prio === 'hoch' && t.status === 'offen' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color ? `<span class="pill"><span class="d" style="--c:${COLORS[t.color]}"></span>${COLOR_NAMES[t.color]}</span>` : ''}${t.studio !== 'X' ? `<span class="pill">${STUDIO[t.studio]}</span>` : ''}${t.cat ? `<span class="pill">${esc(t.cat)}</span>` : ''}</div>
    ${t.summary ? `<div class="sum"><div class="ah">${I.spark}Zusammenfassung${t.reqDate ? `<span class="sumdate">Wunschtermin ${fmtDay(t.reqDate)}</span>` : ''}</div>${esc(t.summary)}<div id="avrow">${availRow(t)}</div></div>` : !t.aiAt && !aiOff ? `<div class="sum busy"><div class="ah">${I.spark}KI liest die Anfrage …</div></div>` : ''}
-   <div class="vbar"><span>Verlauf · ${msgs.length} ${msgs.length === 1 ? 'Nachricht' : 'Nachrichten'}</span></div>
-   <div class="msgs">${msgs.length ? mails : '<div class="empty">Lade …</div>'}${testTyping[t.id] ? `<div class="mail typing"><span>${esc(t.name)} schreibt</span><span class="dots"><i></i><i></i><i></i></span></div>` : ''}</div>
+   <div class="vbar"><span>Verlauf · ${msgs.length} ${msgs.length === 1 ? 'Nachricht' : 'Nachrichten'}</span>${msgs.length > 1 ? `<div class="seg ord"><button data-ord="new" aria-pressed="${msgOrder === 'new'}">Neueste oben</button><button data-ord="old" aria-pressed="${msgOrder === 'old'}">Älteste oben</button></div>` : ''}</div>
+   <div class="msgs">${(() => { const ty = testTyping[t.id] ? `<div class="mail typing"><span>${esc(t.name)} schreibt</span><span class="dots"><i></i><i></i><i></i></span></div>` : ''; const ms = msgs.length ? mails.join('') : '<div class="empty">Lade …</div>'; return msgOrder === 'new' ? ty + ms : ms + ty; })()}</div>
   </div></div>
   <footer class="composer">${closed ? '' : '<div class="grip" id="grip" role="separator" aria-orientation="horizontal" aria-label="Antwortfeld vergrößern oder verkleinern" tabindex="0"><i></i></div>'}<div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
    <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
@@ -1187,7 +1193,9 @@ async function loadDrafts(t) {
   const { data } = await sb.from('drafts').select('label,body,position,based_on').eq('thread_id', t.id).order('position');
   aiDrafts[t.id] = data || [];
   const li = lastInAt(), fresh = (data || []).length && li && data.every((d) => d.based_on && new Date(d.based_on) >= new Date(new Date(li) - 1000));
-  if (!fresh) aiDrafts[t.id] = [];
+  const lastIsIn = msgs[msgs.length - 1]?.direction === 'in';
+  if (!fresh || !lastIsIn) aiDrafts[t.id] = [];
+  if (!lastIsIn) { refreshDraftBar(t); return; }
   if (!fresh && t.isTest && li && msgs[msgs.length - 1]?.direction === 'in') genDrafts(t);
   else { fillFirst(t); refreshDraftBar(t); }
 }
@@ -1282,27 +1290,29 @@ const SEND_AS = [
   ['offen', 'Offen lassen', 'Ich melde mich noch einmal'],
 ];
 let sendMenu = false, rowPop = null;
+let msgOrder = 'new'; try { msgOrder = localStorage.getItem('li-order') || 'new'; } catch (e) {}
 try { Object.assign(drafts, JSON.parse(localStorage.getItem('li-drafts') || '{}')); } catch (e) {}
 const saveDrafts = () => { try { localStorage.setItem('li-drafts', JSON.stringify(Object.fromEntries(Object.entries(drafts).filter(([, v]) => v)))); } catch (e) {} };
+function scrollNewest() { const sc = $('#dscroll'); if (!sc) return; if (msgOrder === 'new') { const m = $('.msgs'); sc.scrollTop = m ? Math.max(0, m.offsetTop - 80) : 0; } else sc.scrollTop = 1e9; }
 async function sendReply(as = 'beantwortet') {
   const t = current, body = ($('#draft').value || '').trim(); if (!body) return toast('Die Antwort ist leer.');
   sendMenu = false;
   const b = $('#send'); b.disabled = true; b.lastChild.textContent = 'Sende …'; $('#sendmenu').disabled = true;
   try {
     const sr = await api('/api/send', { threadId: t.id, body });
-    drafts[t.id] = ''; saveDrafts();
+    drafts[t.id] = ''; saveDrafts(); try { sb.from('drafts').delete().eq('thread_id', t.id).then(() => {}, () => {}); } catch (err) {}
     const fields = { angebot: { status: 'beantwortet', color: 'orange' }, gebucht: { status: 'gebucht', color: 'gruen' }, abgeschlossen: { status: 'abgeschlossen' }, offen: { status: 'offen' }, beantwortet: { status: 'beantwortet' } }[as];
     await loadThreads();
     const fresh = threads.find((x) => x.id === t.id); if (fresh) await patch(fresh, fields);
     toast('Gesendet · ' + SEND_AS.find((x) => x[0] === as)[1]);
     curVar[t.id] = 0; aiDrafts[t.id] = [];
-    await openThread(t.id); const sc = $('#dscroll'); if (sc) sc.scrollTop = 1e9;
+    await openThread(t.id); scrollNewest();
     if (sr.test && as !== 'abgeschlossen') {
-      testTyping[t.id] = true; redrawDetail(); const s2 = $('#dscroll'); if (s2) s2.scrollTop = 1e9;
+      testTyping[t.id] = true; redrawDetail(); scrollNewest();
       setTimeout(async () => {
         try { await api('/api/test/reply', { threadId: t.id }); } catch (err) { toast(err.message); }
         testTyping[t.id] = false; await loadThreads();
-        if (current?.id === t.id) { drafts[t.id] = ''; await openThread(t.id); const s3 = $('#dscroll'); if (s3) s3.scrollTop = 1e9; }
+        if (current?.id === t.id) { drafts[t.id] = ''; await openThread(t.id); scrollNewest(); }
         toast('Neue Antwort der Test-Kundin');
       }, 1200);
     }
@@ -1663,6 +1673,8 @@ document.addEventListener('click', async (e) => {
   if (b.dataset.vm) { const [id, m] = b.dataset.vm.split(':'); viewMode[id] = m; redrawDetail(); return; }
   if (b.dataset.imgs) { showImgs[b.dataset.imgs] = !showImgs[b.dataset.imgs]; redrawDetail(); return; }
   if (b.dataset.quote) { showQuote[b.dataset.quote] = !showQuote[b.dataset.quote]; redrawDetail(); return; }
+  if (b.dataset.ord) { msgOrder = b.dataset.ord; try { localStorage.setItem('li-order', msgOrder); } catch (err) {} redrawDetail(); return; }
+  if (b.dataset.col) { expanded[b.dataset.col] = false; const s = $('#dscroll').scrollTop; $('#detail').innerHTML = detailHTML(); bindDetail(); $('#dscroll').scrollTop = s; return; }
   if (b.dataset.exp) { expanded[b.dataset.exp] = true; const s = $('#dscroll').scrollTop; $('#detail').innerHTML = detailHTML(); bindDetail(); $('#dscroll').scrollTop = s; return; }
   if (b.id === 'star') { await patch(t, { star: !t.star }); render(); return; }
   if (b.id === 'done') { await patch(t, { status: t.status === 'abgeschlossen' ? 'offen' : 'abgeschlossen' }); toast(t.status === 'abgeschlossen' ? 'Erledigt' : 'Wieder offen'); render(); return; }

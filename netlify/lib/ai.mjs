@@ -29,7 +29,13 @@ export async function claude({ model = MODEL_FAST, system, prompt, max_tokens = 
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error('KI: ' + (j.error?.message || 'Fehler ' + r.status)), { status: r.status === 401 ? 409 : 502 });
-  return (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('').trim();
+  const text = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('').trim();
+  if (!text) { // genau sagen, warum nichts kam
+    const why = `ohne Streaming: Ende ${j.stop_reason || '?'}, Teile ${(j.content || []).map((c) => c.type).join('+') || 'keine'}, Modell ${j.model || model}, Eingabe ${j.usage?.input_tokens ?? '?'} Tokens, Ausgabe ${j.usage?.output_tokens ?? '?'}`;
+    console.error('KI leer', why);
+    throw Object.assign(new Error('Die KI hat keinen Text geliefert (' + why + ')'), { status: 502 });
+  }
+  return text;
 }
 // Tolerant: entfernt Code-Zäune, repariert rohe Zeilenumbrüche in Texten
 function escapeInStrings(src) {
@@ -277,6 +283,8 @@ export async function* claudeStream({ model = MODEL_WRITE, system, prompt, max_t
     let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch (e) { return; }
     info.types.add(ev.type + (ev.delta?.type ? '/' + ev.delta.type : '') + (ev.content_block?.type ? '/' + ev.content_block.type : ''));
     if (ev.type === 'message_delta' && ev.delta?.stop_reason) info.stop = ev.delta.stop_reason;
+    if (ev.type === 'message_start') info.model = ev.message?.model;
+    if (ev.usage || ev.message?.usage) info.usage = { ...(info.usage || {}), ...(ev.message?.usage || {}), ...(ev.usage || {}) };
     if (ev.type === 'error') throw new Error('KI: ' + (ev.error?.message || 'Fehler'));
     if (ev.type === 'content_block_delta' && typeof ev.delta?.text === 'string') yield ev.delta.text;
   };
