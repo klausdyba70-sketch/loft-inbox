@@ -847,6 +847,14 @@ mark{background:#f1dfa6}
 .aiedit input::placeholder{color:var(--mute)}
 .aiedit:focus-within{border-color:var(--ai)}
 .aibusy{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mute)}
+
+.callegend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;color:var(--mute);margin:12px 2px 4px}
+.callegend span{display:inline-flex;align-items:center;gap:7px}
+.callegend b{font-weight:600;color:var(--soft)}
+.callegend .dt{width:9px;height:9px}
+.callegend .dt.no{visibility:visible;box-shadow:inset 0 0 0 1px var(--line);background:transparent}
+.dside .callegend{flex-direction:column;gap:5px;margin:8px 0 0;font-size:12px}
+.halfgrid+.calday,.callegend+.halfgrid{margin-top:4px}
 </style>
 </head>
 <body data-view="auth">
@@ -1497,6 +1505,14 @@ function reqMap() {
   for (const t of threads) if (t.reqDate && t.kind !== 'spam' && t.status !== 'spam' && (testMode || !t.isTest)) (m[t.reqDate] = m[t.reqDate] || []).push(t);
   return m;
 }
+function calLegend() {
+  return `<div class="callegend">
+   <span><i class="dt" style="--c:var(--sP)"></i><b>Grün</b> = Penthouse Loft</span>
+   <span><i class="dt" style="--c:var(--sF)"></i><b>Orange</b> = Factory Loft</span>
+   <span><i class="dt" style="--c:var(--mute)"></i><b>Gefüllter Punkt</b> = den ganzen Tag belegt</span>
+   <span><i class="dt half" style="--c:var(--mute)"></i><b>Kreis</b> = nur einige Stunden belegt</span>
+   <span><i class="dt no"></i><b>Kein Punkt</b> = frei</span></div>`;
+}
 function monthGrid(y, m, { big = false, sel = null, mark = null } = {}) {
   const first = new Date(y, m, 1), off = (first.getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate(), today = isoOf(new Date()), rq = reqMap();
   let c = WD.map((w) => `<span class="mw">${w}</span>`).join('');
@@ -1534,11 +1550,11 @@ function renderCal() {
   el.innerHTML = `<div class="calh"><h1>Kalender</h1>
     <div class="calnav"><button class="icon" data-calnav="-1" aria-label="Zurück">‹</button><b>${calMode === 'half' ? monthName(y, m).split(' ')[0] + ' – ' + monthName(...normYM(y, m + 5)) : monthName(y, m)}</b><button class="icon" data-calnav="1" aria-label="Weiter">›</button><button class="mini" data-calnav="0">Heute</button></div>
     <div class="seg"><button data-calmode="month" aria-pressed="${calMode === 'month'}">Monat</button><button data-calmode="half" aria-pressed="${calMode === 'half'}">6 Monate</button></div></div>
-   <div class="calleg"><span><i style="--c:var(--sP)"></i>Penthouse</span><span><i style="--c:var(--sF)"></i>Factory</span><span><i class="half"></i>teilweise belegt</span><span><i></i>ganztägig</span>${calNeeds(keys) ? '<span>Lade …</span>' : ''}</div>
+   ${calNeeds(keys) ? '<div class="calleg"><span>Lade …</span></div>' : ''}
    ${calNote()}
    ${calMode === 'half'
-    ? `<div class="halfgrid">${[0, 1, 2, 3, 4, 5].map((i) => { const [yy, mm] = normYM(y, m + i); return `<div class="hm"><h3>${monthName(yy, mm)}</h3>${monthGrid(yy, mm, { sel: calSel })}</div>`; }).join('')}</div>${calSel ? dayPanel(calSel) : ''}`
-    : `<div class="calwrap">${monthGrid(y, m, { big: true, sel: calSel })}${dayPanel(calSel)}</div>`}`;
+    ? `${calLegend()}<div class="halfgrid">${[0, 1, 2, 3, 4, 5].map((i) => { const [yy, mm] = normYM(y, m + i); return `<div class="hm"><h3>${monthName(yy, mm)}</h3>${monthGrid(yy, mm, { sel: calSel })}</div>`; }).join('')}</div>${calSel ? dayPanel(calSel) : ''}`
+    : `<div class="calwrap"><div>${monthGrid(y, m, { big: true, sel: calSel })}${calLegend()}</div>${dayPanel(calSel)}</div>`}`;
   if (calNeeds(keys)) ensureCal(keys).then(() => { if (view === 'cal') renderCal(); });
 }
 function normYM(y, m) { const d = new Date(y, m, 1); return [d.getFullYear(), d.getMonth()]; }
@@ -1556,7 +1572,7 @@ function sideCalHTML(t) {
   const base = t.reqDate ? new Date(t.reqDate + 'T12:00:00') : new Date(), y = base.getFullYear(), m = base.getMonth();
   const inf = t.reqDate && calCache[t.reqDate.slice(0, 7)] ? dayEv(t.reqDate) : null;
   return `<div class="sidecalh"><h3>Kalender</h3><button class="mini" data-calgo="${t.reqDate || isoOf(new Date())}">Öffnen</button></div>
-   <div class="mmh"><b>${monthName(y, m)}</b></div>${monthGrid(y, m, { mark: t.reqDate })}
+   <div class="mmh"><b>${monthName(y, m)}</b></div>${monthGrid(y, m, { mark: t.reqDate })}${calLegend()}
    ${calNote()}
    ${inf && calOn() ? `<div class="avlist">${CSTU.filter(([s]) => calCfg[s]).map(([s, l, col]) => `<div class="cstu"><b><i style="--c:${col}"></i>${l}<small class="${['free', 'part', 'busy'][inf[s].lv]}">${lvText(inf[s], inf.a, inf.b)}</small></b></div>`).join('')}<p class="hint2">Stand für ${fmtDay(t.reqDate)}</p></div>` : ''}`;
 }
