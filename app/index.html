@@ -781,9 +781,15 @@ function render() {
 
 // ---------- Liste ----------
 async function loadThreads() {
-  const { data, error } = await sb.from('threads').select('id,subject,status,unread,starred,priority,marker,studio,category,spam_score,summary,last_message_at,contacts(name,email)').order('last_message_at', { ascending: false }).limit(5000);
-  if (error) { toast(error.message); return; }
-  threads = data.map(fromDb);
+  // Supabase liefert höchstens 1000 Zeilen pro Abfrage, daher in Blöcken laden
+  const all = [];
+  for (let from = 0; from < 20000; from += 1000) {
+    const { data, error } = await sb.from('threads').select('id,subject,status,unread,starred,priority,marker,studio,category,spam_score,summary,last_message_at,contacts(name,email)').order('last_message_at', { ascending: false }).range(from, from + 999);
+    if (error) { toast(error.message); return; }
+    all.push(...data);
+    if (data.length < 1000) break;
+  }
+  threads = all.map(fromDb);
   if (current) current = threads.find((t) => t.id === current.id) || null;
   if (!current && !loadThreads.done && matchMedia('(min-width:761px)').matches) { loadThreads.done = true; const first = threads.filter((t) => t.status === 'offen').sort((a, b) => sortKey(a) - sortKey(b))[0]; if (first) { openThread(first.id); return; } }
   if (view === 'inbox') { renderList(); if (current && !$('#draft')) { $('#detail').innerHTML = detailHTML(); bindDetail(); } }
@@ -1084,6 +1090,7 @@ async function renderSettings() {
   mc.innerHTML = `<h3>Postfach</h3>
    <div class="srow"><div class="stx"><b>Microsoft 365</b><small>${s.error ? esc(s.error) : s.microsoft ? 'Verbunden mit ' + esc(s.microsoft.account) : 'Noch nicht verbunden'}</small></div><span class="cst ${s.microsoft ? 'ok' : 'todo'}">${s.microsoft ? 'Verbunden' : 'Einrichten'}</span><button class="mini" id="ms">${s.microsoft ? 'Neu verbinden' : 'Verbinden'}</button></div>
    <div class="srow"><div class="stx"><b>Letzter Abruf</b><small>${s.lastRun ? fmtFull(s.lastRun.at) + ' · automatisch alle 5 Minuten' : 'noch keiner'}</small></div><button class="mini" id="sync" ${s.microsoft ? '' : 'disabled'}>Jetzt abrufen</button></div>
+   ${s.backfill ? `<div class="srow"><div class="stx"><b>Ältere Mails werden nachgeladen</b><small>Neue Mails kommen trotzdem sofort. Das Nachladen läuft im Hintergrund weiter.</small></div></div>` : ''}
    ${errNewer ? `<div class="srow"><div class="stx"><b class="hot">Letzter Fehler</b><small>${esc(s.lastError.message)}</small></div></div>` : ''}
    <div class="srow"><div class="stx"><b>Postfach bleibt unangetastet</b><small>Die App liest nur. Mail auf dem Mac und Freshdesk laufen unverändert weiter.</small></div></div>`;
 }
@@ -1127,7 +1134,7 @@ document.addEventListener('click', async (e) => {
   if (b.id === 'back') { document.body.classList.remove('open'); current = null; render(); return; }
   if (b.dataset.themeSet) { settings.theme = b.dataset.themeSet; applyTheme(); savePrefs(); renderSettings(); sb.from('settings').update({ theme: settings.theme }).eq('id', true).then(() => {}); return; }
   if (b.id === 'ms') { try { const { url } = await api('/api/ms/start', {}); location.href = url; } catch (err) { toast(err.message); } return; }
-  if (b.id === 'sync') { b.disabled = true; b.textContent = 'Abruf läuft …'; try { const r = await api('/api/sync', {}); const n = r.result.inbox.neu + r.result.sentitems.neu; toast(`${n} neue Nachrichten.` + (r.result.inbox.fertig && r.result.sentitems.fertig ? ' Alles abgerufen.' : ' Der Rest folgt automatisch.')); loadThreads(); renderSettings(); } catch (err) { toast('Abruf: ' + err.message); b.disabled = false; b.textContent = 'Jetzt abrufen'; } return; }
+  if (b.id === 'sync') { b.disabled = true; b.textContent = 'Abruf läuft …'; try { const r = await api('/api/sync', {}); const n = r.result.inbox.neu + r.result.sentitems.neu; toast(`${n} neue Nachrichten.` + (r.result.inbox.nachladen || r.result.sentitems.nachladen ? ' Ältere Mails werden im Hintergrund nachgeladen.' : '')); loadThreads(); renderSettings(); } catch (err) { toast('Abruf: ' + err.message); b.disabled = false; b.textContent = 'Jetzt abrufen'; } return; }
   if (b.id === 'logout') { await sb.auth.signOut(); location.hash = ''; loginView(); return; }
   if (!t) return;
   if (b.dataset.copy) { const v = b.dataset.copy; try { await navigator.clipboard.writeText(v); toast('Kopiert'); } catch (err) { toast(v); } return; }
