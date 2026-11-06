@@ -12,7 +12,15 @@ export default guard(async (req) => {
     async start(ctrl) {
       let raw = '';
       try {
-        for await (const chunk of claudeStream({ system: d.system, prompt: d.prompt })) { raw += chunk; ctrl.enqueue(enc.encode(chunk)); }
+        const info = {};
+        for await (const chunk of claudeStream({ system: d.system, prompt: d.prompt, info })) { raw += chunk; ctrl.enqueue(enc.encode(chunk)); }
+        if (!raw.trim()) { // Stream kam leer: Grund merken und ohne Streaming nochmal versuchen
+          d.diag = 'Stream leer, Ende ' + (info.stop || '?') + ', Modell ' + (info.model || '?') + ', Ausgabe ' + (info.usage?.output_tokens ?? '?') + ', ' + [...(info.types || [])].slice(0, 8).join(' ');
+          console.error(d.diag);
+          try { raw = await claude({ model: process.env.AI_MODEL_WRITE || 'claude-haiku-5-5', system: d.system, prompt: d.prompt, max_tokens: 1500, timeoutMs: 20000 }); }
+          catch (e2) { throw new Error(d.diag + ' | ' + e2.message); }
+          ctrl.enqueue(enc.encode(raw));
+        }
         await saveDraft(db, threadId, d, raw);
       } catch (e) {
         console.error(e);
