@@ -893,12 +893,22 @@ button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
 .mtile.on{border:0;background:var(--mk);color:#fff;box-shadow:0 2px 6px color-mix(in srgb,var(--mk) 35%,transparent)}
 .ghostchip{border-style:dashed!important;color:var(--mute)}
 .ghostchip[aria-pressed="true"]{color:var(--ink)}
+
+.cscrim{position:fixed;inset:0;z-index:60;background:rgb(10 20 18/.38);display:grid;place-items:center;padding:16px}
+.cdlg{width:min(420px,100%);background:var(--surface);color:var(--ink);border-radius:20px;padding:20px;box-shadow:0 20px 60px rgb(0 0 0/.25);display:flex;flex-direction:column;gap:12px}
+.cdlg h3{margin:0;font-family:var(--display);font-size:19px;font-weight:700;letter-spacing:-.02em}
+.cdlg p{margin:0;font-size:14px;color:var(--soft);line-height:1.5}
+.cprev{font-size:13px;color:var(--mute);background:var(--sunk);border-radius:12px;padding:10px 12px;white-space:pre-wrap;max-height:120px;overflow:hidden}
+.cbtns{display:flex;justify-content:flex-end;gap:8px}
+.cbtns .ghost{height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600}
+.cbtns .send{height:40px;padding:0 18px;border-radius:12px}
 </style>
 </head>
 <body data-view="auth">
 <div id="root"></div>
 <div id="sheet"></div>
 <div id="pop"></div>
+<div id="confirm"></div>
 <div class="toast" id="toast" hidden></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -1333,6 +1343,24 @@ let msgOrder = 'new'; try { msgOrder = localStorage.getItem('li-order') || 'new'
 try { Object.assign(drafts, JSON.parse(localStorage.getItem('li-drafts') || '{}')); } catch (e) {}
 const saveDrafts = () => { try { localStorage.setItem('li-drafts', JSON.stringify(Object.fromEntries(Object.entries(drafts).filter(([, v]) => v)))); } catch (e) {} };
 function scrollNewest() { const sc = $('#dscroll'); if (!sc) return; if (msgOrder === 'new') { const m = $('.msgs'); sc.scrollTop = m ? Math.max(0, m.offsetTop - 80) : 0; } else sc.scrollTop = 1e9; }
+// Vor dem Senden immer nachfragen
+function askSend(as) {
+  const t = current, body = ($('#draft')?.value || '').trim(); if (!t) return; if (!body) return toast('Die Antwort ist leer.');
+  sendMenu = false; redrawDetail();
+  const label = SEND_AS.find((x) => x[0] === as)[1];
+  $('#confirm').innerHTML = `<div class="cscrim" id="cscrim"><div class="cdlg" role="alertdialog" aria-modal="true" aria-labelledby="cdh">
+   <h3 id="cdh">Antwort wirklich senden?</h3>
+   <p>An <b>${esc(t.email)}</b>${t.isTest ? ' (Testanfrage, geht nicht raus)' : ''}<br>Danach: <b>${esc(label)}</b></p>
+   <div class="cprev">${esc(body.slice(0, 220))}${body.length > 220 ? ' …' : ''}</div>
+   <div class="cbtns"><button class="ghost" id="cno">Abbrechen</button><button class="send" id="cyes" data-as="${as}">Ja, senden</button></div></div></div>`;
+  setTimeout(() => $('#cyes')?.focus(), 0);
+}
+const closeConfirm = () => { const c = $('#confirm'); if (c) c.innerHTML = ''; };
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'cscrim' || e.target.closest('#cno')) { closeConfirm(); return; }
+  const y = e.target.closest('#cyes'); if (y) { const as = y.dataset.as; closeConfirm(); sendReply(as); }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#confirm')?.innerHTML) closeConfirm(); });
 async function sendReply(as = 'beantwortet') {
   const t = current, body = ($('#draft').value || '').trim(); if (!body) return toast('Die Antwort ist leer.');
   sendMenu = false;
@@ -1744,9 +1772,9 @@ document.addEventListener('click', async (e) => {
   if (b.id === 'dregen' || b.id === 'dgen') { drafts[t.id] = ''; const ta = $('#draft'); if (ta) ta.value = ''; genDrafts(t); return; }
   if (b.dataset.dretry) { aiErr[t.id] = null; b.disabled = true; b.innerHTML = '<span class="dots"><i></i><i></i><i></i></span>'; try { await streamDraft(t, b.dataset.dretry); } catch (err) { aiErr[t.id] = err.message; } refreshDraftBar(t); return; }
   if (b.dataset.rf) { const ta = $('#draft'); const txt = (ta?.value || '').trim(); if (!txt) return toast('Erst einen Text wählen oder schreiben'); const [l, ins] = REFINE[+b.dataset.rf]; b.disabled = true; b.textContent = '…'; try { const r = await api('/api/ai/refine', { text: txt, instruction: ins }); drafts[t.id] = r.text; saveDrafts(); } catch (err) { toast(err.message); } redrawDetail(); return; }
-  if (b.id === 'send') { sendReply('beantwortet'); return; }
+  if (b.id === 'send') { askSend('beantwortet'); return; }
   if (b.id === 'sendmenu') { sendMenu = !sendMenu; redrawDetail(); return; }
-  if (b.dataset.sendas) { sendReply(b.dataset.sendas); return; }
+  if (b.dataset.sendas) { askSend(b.dataset.sendas); return; }
   if (b.id === 'discard') { drafts[t.id] = ''; saveDrafts(); redrawDetail(); toast('Entwurf verworfen'); return; }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheet) { sheet = null; render(); } });
