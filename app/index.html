@@ -509,6 +509,7 @@ body:not([data-view="contacts"]) .contacts{display:none}
 @media (prefers-reduced-motion:reduce){.typing i{animation:none}}
 
 /* echte App: Anmeldung, Feinschliff */
+.testbadge{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:50;background:var(--orange);color:#fff;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:99px;pointer-events:none}
 @media (min-width:761px){.app{grid-template-columns:76px var(--listw,380px) minmax(0,1fr)!important}}
 .list{position:relative}
 .lgrip{position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;z-index:5;touch-action:none}
@@ -601,6 +602,33 @@ input,textarea{font-size:16px!important}
 .set{grid-column:2/4}
 body[data-view="set"] .list,body[data-view="set"] .detail{display:none}
 @media (max-width:760px){.set{grid-column:1}}
+
+/* Rechte Spalte: modernere Karten, eigene Auswahlfelder */
+.dside{background:color-mix(in srgb,var(--primary) 6%,var(--bg));gap:12px;padding:14px}
+.sbox2{background:var(--surface);border:1px solid color-mix(in srgb,var(--primary) 10%,var(--line));border-radius:16px;padding:14px;box-shadow:0 1px 2px rgb(15 20 50/.04),0 6px 18px rgb(15 20 50/.06);gap:10px}
+.sbox2 h3{color:var(--primary);display:flex;align-items:center;gap:6px}
+.sbox2 h3::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.prop{font-size:12px;font-weight:500;color:var(--mute);gap:5px}
+.selw{position:relative;display:block}
+.selw::after{content:"";position:absolute;right:16px;top:50%;width:7px;height:7px;border-right:2px solid var(--soft);border-bottom:2px solid var(--soft);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.ssel{appearance:none;-webkit-appearance:none;width:100%;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 42px 0 14px;font:500 14px var(--font);cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.ssel:hover{border-color:color-mix(in srgb,var(--primary) 40%,var(--line))}
+.ssel:focus-visible{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.ssel.is-offen{background:var(--orange-soft);border-color:transparent;color:var(--orange);font-weight:600}
+.ssel.is-beantwortet{background:var(--primary-soft);border-color:transparent;color:var(--primary);font-weight:600}
+.ssel.is-gebucht{background:var(--green-soft);border-color:transparent;color:var(--green);font-weight:600}
+.ssel.is-abgeschlossen{background:var(--grey-soft);border-color:transparent;color:var(--mute);font-weight:600}
+.ssel.is-spam,.ssel.is-phoch{background:var(--red-soft);border-color:transparent;color:var(--red);font-weight:600}
+.dside .md{height:30px;border-radius:9px;font-size:12.5px;font-weight:500}
+.dside .md.today>span:first-child{width:26px;height:26px}
+.orow{background:var(--bg);border:1px solid var(--line)}
+.orow:hover{border-color:color-mix(in srgb,var(--primary) 40%,var(--line))}
+/* Antwortbereich: Luft nach unten, nie abgeschnitten */
+.composer{padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))!important;flex:none}
+.composer .cbar{padding-top:4px}
+#draft{max-height:50vh}
+/* Erstanfrage ohne dicken blauen Rahmen */
+.mail.first{border-color:var(--line);box-shadow:none}
 </style>
 </head>
 <body data-view="auth">
@@ -753,9 +781,15 @@ function render() {
 
 // ---------- Liste ----------
 async function loadThreads() {
-  const { data, error } = await sb.from('threads').select('id,subject,status,unread,starred,priority,marker,studio,category,spam_score,summary,last_message_at,contacts(name,email)').order('last_message_at', { ascending: false }).limit(5000);
-  if (error) { toast(error.message); return; }
-  threads = data.map(fromDb);
+  // Supabase liefert höchstens 1000 Zeilen pro Abfrage, daher in Blöcken laden
+  const all = [];
+  for (let from = 0; from < 20000; from += 1000) {
+    const { data, error } = await sb.from('threads').select('id,subject,status,unread,starred,priority,marker,studio,category,spam_score,summary,last_message_at,contacts(name,email)').order('last_message_at', { ascending: false }).range(from, from + 999);
+    if (error) { toast(error.message); return; }
+    all.push(...data);
+    if (data.length < 1000) break;
+  }
+  threads = all.map(fromDb);
   if (current) current = threads.find((t) => t.id === current.id) || null;
   if (!current && !loadThreads.done && matchMedia('(min-width:761px)').matches) { loadThreads.done = true; const first = threads.filter((t) => t.status === 'offen').sort((a, b) => sortKey(a) - sortKey(b))[0]; if (first) { openThread(first.id); return; } }
   if (view === 'inbox') { renderList(); if (current && !$('#draft')) { $('#detail').innerHTML = detailHTML(); bindDetail(); } }
@@ -858,7 +892,7 @@ function detailHTML() {
   </div></div>
   <footer class="composer">${closed ? '' : '<div class="grip" id="grip" role="separator" aria-orientation="horizontal" aria-label="Antwortfeld vergrößern oder verkleinern" tabindex="0"><i></i></div>'}<div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
    <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
-   <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${composerH}px">${esc(drafts[t.id] || '')}</textarea>
+   <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${Math.min(composerH, Math.round(innerHeight * 0.5))}px">${esc(drafts[t.id] || '')}</textarea>
    <div class="cbar"><small class="saved" id="saved">${drafts[t.id] ? 'Entwurf gespeichert' : ''}</small><span class="sp" style="flex:1"></span>
     <button class="icon" id="discard" title="Entwurf verwerfen" aria-label="Entwurf verwerfen" ${drafts[t.id] ? '' : 'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg></button>
     <div class="split">${sendMenu ? `<div class="smenu" role="menu"><h4>Senden und festlegen als</h4>${SEND_AS.map(([k, l, sub]) => `<button role="menuitem" data-sendas="${k}"><b>${l}</b><small>${sub}</small></button>`).join('')}</div>` : ''}
@@ -938,17 +972,17 @@ function miniCal() {
 }
 function sideHTML(t) {
   const others = threads.filter((x) => x.email && x.email === t.email && x.id !== t.id).sort((a, b) => b.at - a.at);
-  const sel = (id, opts, val) => `<select class="ssel" data-prop="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(val ?? '') === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const sel = (id, opts, val, cls = '') => `<span class="selw"><select class="ssel ${cls}" data-prop="${id}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(val ?? '') === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></span>`;
   return `<aside class="dside" aria-label="Details zur Anfrage">
    <section class="sbox2"><h3>Kontakt</h3><div class="ct">${avatar(t, false)}<div class="stx"><b>${esc(t.name)}</b><small>${esc(t.email)}</small></div></div>
     <button class="mini" data-copy="${esc(t.email)}">E-Mail kopieren</button>
     <p class="hint2">${others.length ? `${others.length} weitere ${others.length === 1 ? 'Anfrage' : 'Anfragen'} von dieser Adresse` : 'Erste Anfrage von dieser Adresse'}</p>
     ${others.slice(0, 5).map((o) => `<button class="orow" data-id="${o.id}"><span>${esc(o.subject)}</span><small>${fmtT(o.at)} · ${ST_LABEL[o.status]}</small></button>`).join('')}</section>
    <section class="sbox2"><h3>Eigenschaften</h3>
-    <label class="prop">Status${sel('status', Object.entries(ST_LABEL), t.status)}</label>
+    <label class="prop">Status${sel('status', Object.entries(ST_LABEL), t.status, 'is-' + t.status)}</label>
     <label class="prop">Studio${sel('studio', [['X', 'Nicht festgelegt'], ['P', 'Penthouse Loft'], ['F', 'Factory Loft']], t.studio)}</label>
     <label class="prop">Art der Anfrage${sel('cat', [['', 'Nicht festgelegt'], ...CATS.map((c) => [c, c])], t.cat || '')}</label>
-    <label class="prop">Priorität${sel('prio', [['hoch', 'Hoch'], ['normal', 'Normal'], ['niedrig', 'Niedrig']], t.prio)}</label></section>
+    <label class="prop">Priorität${sel('prio', [['hoch', 'Hoch'], ['normal', 'Normal'], ['niedrig', 'Niedrig']], t.prio, 'is-p' + t.prio)}</label></section>
    <section class="sbox2"><h3>Kalender</h3>${miniCal()}<p class="hint2">Belegung von Penthouse und Factory erscheint hier, sobald die Google-Kalender verbunden sind (nächster Schritt).</p></section>
   </aside>`;
 }
@@ -972,7 +1006,7 @@ function startDrag(e, el, onMove, onEnd) {
 document.addEventListener('pointerdown', (e) => {
   const g = e.target.closest('#grip'); if (!g) return;
   const ta = $('#draft'); if (!ta) return;
-  const y0 = e.clientY, h0 = ta.offsetHeight, maxH = Math.max(160, ($('#detail').clientHeight || 600) * 0.7);
+  const y0 = e.clientY, h0 = ta.offsetHeight, maxH = Math.max(160, Math.min(innerHeight * 0.5, ($('#detail').clientHeight || 600) * 0.6));
   startDrag(e, g, (ev) => { composerH = Math.round(Math.min(maxH, Math.max(56, h0 + (y0 - ev.clientY)))); ta.style.height = composerH + 'px'; },
     () => { try { localStorage.setItem('li-composer-h', composerH); } catch (err) {} });
 });
@@ -1056,6 +1090,7 @@ async function renderSettings() {
   mc.innerHTML = `<h3>Postfach</h3>
    <div class="srow"><div class="stx"><b>Microsoft 365</b><small>${s.error ? esc(s.error) : s.microsoft ? 'Verbunden mit ' + esc(s.microsoft.account) : 'Noch nicht verbunden'}</small></div><span class="cst ${s.microsoft ? 'ok' : 'todo'}">${s.microsoft ? 'Verbunden' : 'Einrichten'}</span><button class="mini" id="ms">${s.microsoft ? 'Neu verbinden' : 'Verbinden'}</button></div>
    <div class="srow"><div class="stx"><b>Letzter Abruf</b><small>${s.lastRun ? fmtFull(s.lastRun.at) + ' · automatisch alle 5 Minuten' : 'noch keiner'}</small></div><button class="mini" id="sync" ${s.microsoft ? '' : 'disabled'}>Jetzt abrufen</button></div>
+   ${s.backfill ? `<div class="srow"><div class="stx"><b>Ältere Mails werden nachgeladen</b><small>Neue Mails kommen trotzdem sofort. Das Nachladen läuft im Hintergrund weiter.</small></div></div>` : ''}
    ${errNewer ? `<div class="srow"><div class="stx"><b class="hot">Letzter Fehler</b><small>${esc(s.lastError.message)}</small></div></div>` : ''}
    <div class="srow"><div class="stx"><b>Postfach bleibt unangetastet</b><small>Die App liest nur. Mail auf dem Mac und Freshdesk laufen unverändert weiter.</small></div></div>`;
 }
@@ -1099,7 +1134,7 @@ document.addEventListener('click', async (e) => {
   if (b.id === 'back') { document.body.classList.remove('open'); current = null; render(); return; }
   if (b.dataset.themeSet) { settings.theme = b.dataset.themeSet; applyTheme(); savePrefs(); renderSettings(); sb.from('settings').update({ theme: settings.theme }).eq('id', true).then(() => {}); return; }
   if (b.id === 'ms') { try { const { url } = await api('/api/ms/start', {}); location.href = url; } catch (err) { toast(err.message); } return; }
-  if (b.id === 'sync') { b.disabled = true; b.textContent = 'Abruf läuft …'; try { const r = await api('/api/sync', {}); const n = r.result.inbox.neu + r.result.sentitems.neu; toast(`${n} neue Nachrichten.` + (r.result.inbox.fertig && r.result.sentitems.fertig ? ' Alles abgerufen.' : ' Der Rest folgt automatisch.')); loadThreads(); renderSettings(); } catch (err) { toast('Abruf: ' + err.message); b.disabled = false; b.textContent = 'Jetzt abrufen'; } return; }
+  if (b.id === 'sync') { b.disabled = true; b.textContent = 'Abruf läuft …'; try { const r = await api('/api/sync', {}); const n = r.result.inbox.neu + r.result.sentitems.neu; toast(`${n} neue Nachrichten.` + (r.result.inbox.nachladen || r.result.sentitems.nachladen ? ' Ältere Mails werden im Hintergrund nachgeladen.' : '')); loadThreads(); renderSettings(); } catch (err) { toast('Abruf: ' + err.message); b.disabled = false; b.textContent = 'Jetzt abrufen'; } return; }
   if (b.id === 'logout') { await sb.auth.signOut(); location.hash = ''; loginView(); return; }
   if (!t) return;
   if (b.dataset.copy) { const v = b.dataset.copy; try { await navigator.clipboard.writeText(v); toast('Kopiert'); } catch (err) { toast(v); } return; }
@@ -1125,6 +1160,7 @@ document.addEventListener('click', async (e) => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheet) { sheet = null; render(); } });
 
 // ---------- Start ----------
+if (location.hostname.startsWith('dev--')) { document.title = 'TEST · Loft Inbox'; const tb = document.createElement('div'); tb.className = 'testbadge'; tb.textContent = 'Test-Version'; document.body.appendChild(tb); }
 (async () => {
   try {
     const cfg = await (await fetch('/api/config')).json();

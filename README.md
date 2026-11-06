@@ -21,6 +21,12 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 - Antworten gehen über das Postfach raus und liegen danach im Ordner "Gesendet".
 - Status, Farben, Spam und Erledigt gelten nur in der App.
 
+## Arbeitsweise (Netlify-Credits sparen)
+
+- Entwickelt wird auf dem Zweig `dev`. Netlify baut ihn als Branch-Deploy unter https://dev--loftstudiocologne-inbox.netlify.app, das kostet keine Credits.
+- `main` ist die Live-Version. Nach `main` wird nur zusammengeführt, wenn Klaus "veröffentlichen" sagt. Jeder Live-Deploy kostet 15 Credits.
+- Der automatische Mailabruf läuft nur in der Live-Version.
+
 ## Sicherheit
 
 - Zugriff auf alle Tabellen nur für den eingetragenen Besitzer **mit abgeschlossenem zweiten Faktor** (`aal2`). Geprüft in `public.is_owner()`.

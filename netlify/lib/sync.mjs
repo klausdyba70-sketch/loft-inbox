@@ -108,30 +108,54 @@ async function storeMessage(db, raw) {
 }
 
 // budgetMs: Zeitbudget pro Lauf. Netlify beendet normale Funktionen nach ca. 10 s, geplante nach 30 s.
+// 1) Zuerst immer die neuesten Mails holen (damit Neues sofort erscheint),
+// 2) danach mit der restlichen Zeit ältere Mails nachladen (Delta-Abfrage).
 export async function runSync(db, { budgetMs = 8000 } = {}) {
   const started = Date.now();
   const timeLeft = () => Date.now() - started < budgetMs;
   const token = await msAccessToken(db);
   const result = {};
+  const H = { headers: { Prefer: 'outlook.body-content-type="html"' } };
+
+  // ---- 1) Neueste Mails ----
+  for (const folder of FOLDERS) {
+    const key = `graph:recent:${folder}`;
+    const { data: st } = await db.from('sync_state').select('value').eq('key', key).maybeSingle();
+    const since = st?.value?.since || new Date(Date.now() - 3 * 864e5).toISOString();
+    const field = folder === 'sentitems' ? 'sentDateTime' : 'receivedDateTime';
+    const url = `/me/mailFolders/${folder}/messages?$select=${SELECT}&$filter=${field} ge ${since}&$orderby=${field} desc&$top=30`;
+    const counts = { neu: 0, doppelt: 0, übersprungen: 0 };
+    let newest = since;
+    const res = await graph(token, url, H);
+    for (const m of res.value || []) {
+      counts[await storeMessage(db, m)]++;
+      const t = m[field] || m.receivedDateTime; if (t && t > newest) newest = t;
+    }
+    // eine Stunde Überlappung, damit nichts durchrutscht; Doppelte werden erkannt
+    const next = new Date(Math.max(new Date(since).getTime(), new Date(newest).getTime() - 36e5)).toISOString();
+    await db.from('sync_state').upsert({ key, value: { since: next }, updated_at: new Date().toISOString() });
+    result[folder] = { ...counts };
+  }
+
+  // ---- 2) Ältere Mails nachladen ----
   for (const folder of FOLDERS) {
     const key = `graph:${folder}`;
     const { data: st } = await db.from('sync_state').select('value').eq('key', key).maybeSingle();
     let url = st?.value?.next || st?.value?.delta || `/me/mailFolders/${folder}/messages/delta?$select=${SELECT}`;
-    const counts = { neu: 0, doppelt: 0, übersprungen: 0 };
-    let saved = null;
-    for (let page = 0; page < MAX_PAGES_PER_RUN && url && timeLeft(); page++) {
+    const counts = result[folder];
+    let pages = 0;
+    for (; pages < MAX_PAGES_PER_RUN && url && timeLeft(); pages++) {
       const res = await graph(token, url, { headers: { Prefer: 'outlook.body-content-type="html", odata.maxpagesize=10' } });
-      // Seite ganz verarbeiten, damit der Fortschritt sauber gespeichert wird; doppelte werden übersprungen
       for (const m of res.value || []) {
         if (m['@removed']) continue;
         counts[await storeMessage(db, m)]++;
       }
-      if (res['@odata.nextLink']) { url = res['@odata.nextLink']; saved = { next: url }; }
-      else { saved = { delta: res['@odata.deltaLink'] }; url = null; }
-      if (saved) await db.from('sync_state').upsert({ key, value: saved, updated_at: new Date().toISOString() });
+      const saved = res['@odata.nextLink'] ? { next: res['@odata.nextLink'] } : { delta: res['@odata.deltaLink'] };
+      url = saved.next || null;
+      await db.from('sync_state').upsert({ key, value: saved, updated_at: new Date().toISOString() });
     }
-    counts.fertig = !url;
-    result[folder] = counts;
+    counts.fertig = !url && pages > 0 ? true : !(st?.value?.next) && !url;
+    counts.nachladen = !!url || !!(pages === 0 && st?.value?.next);
   }
   await db.from('sync_state').upsert({ key: 'graph:last_run', value: { at: new Date().toISOString(), result }, updated_at: new Date().toISOString() });
   return result;
