@@ -218,7 +218,8 @@ So gehst du vor:
 2. Finde alle Fragen in der Mail des Kunden, auch versteckte (z. B. "geht auch nachts?", "ist Licht dabei?").
 3. Beantworte genau diese Fragen, in der Reihenfolge des Kunden, jeweils in ein bis zwei Sätzen.
 4. Ende mit einem Satz zum nächsten Schritt.
-Länge: höchstens etwa 120 Wörter ohne Signatur. Keine Floskeln, höchstens ein kurzer Dankessatz am Anfang. Keine Preislisten: nenne nur den Preis, der zur Anfrage passt (z. B. die gewünschte Stundenzahl), und nur wenn nach Preis oder Buchung gefragt ist oder eine Hausregel es verlangt. Was nicht gefragt ist, lässt du weg. Klaus kann später mehr verlangen.
+WICHTIG: Gibt Klaus einen Änderungswunsch, setzt du ihn vollständig und sichtbar um. Sein Wunsch geht allen Regeln hier vor (Länge, Preise, Inhalt, Ton). Einzige Ausnahme: Erfinde keine Fakten, nimm sie aus der FAQ.
+Länge ohne Änderungswunsch: höchstens etwa 120 Wörter ohne Signatur. Keine Floskeln, höchstens ein kurzer Dankessatz am Anfang. Keine Preislisten: nenne nur den Preis, der zur Anfrage passt (z. B. die gewünschte Stundenzahl), und nur wenn nach Preis oder Buchung gefragt ist oder eine Hausregel es verlangt. Was nicht gefragt ist, lässt du weg. Klaus kann später mehr verlangen.
 Regeln:
 - Nutze die FAQ unten. Nenne Preise, Zeiten und Konditionen genau so, wie sie dort stehen. Erfinde nichts. Fehlt eine Angabe, setze einen Platzhalter in eckigen Klammern, z. B. [Preis Tagesmiete].
 - Verfügbarkeit: Steht in der Anfrage ein Kalenderstand, nutze ihn. Ist der Tag frei: schreibe, dass er Stand jetzt noch frei ist und erst mit Bestätigung fest reserviert ist. Ist er belegt: sag das freundlich und biete die freien Tage in der Nähe an. Nenne nie, wer gebucht hat. Ohne Kalenderstand nichts zusagen, sondern [Verfügbarkeit prüfen] setzen.
@@ -244,12 +245,13 @@ Verlauf (neueste zuletzt):
 ${convoText(msgs)}
 `;
   const prompt = instruction && current
-    ? `${head}
-Aktueller Entwurf von Klaus:
+    ? `ÄNDERUNGSWUNSCH VON KLAUS: ${instruction}
+
+${head}
+Aktueller Entwurf:
 ${current}
 
-Klaus möchte daran ändern: ${instruction}
-Überarbeite den Entwurf entsprechend. Behalte alles andere, auch die Signatur. Gib nur den fertigen Mailtext aus.`
+Überarbeite den Entwurf so, dass der Änderungswunsch "${instruction}" vollständig umgesetzt ist. Er hat Vorrang vor den Regeln zu Länge und Preisen. Der Unterschied zum alten Entwurf muss klar erkennbar sein. Alles, was der Wunsch nicht betrifft, bleibt wie es ist, auch die Signatur. Gib nur den fertigen Mailtext aus.`
     : `${head}
 ${samples.length ? 'So klingen Klaus’ bisherige Antworten (nur Ton übernehmen, keine Inhalte):\n' + samples.map((s, i) => `--- Beispiel ${i + 1} ---\n${s}`).join('\n') + '\n\n' : ''}${instruction ? 'Wunsch von Klaus für diese Antwort: ' + instruction + '\n' : ''}Schreibe die Antwort. ${v.hint}`;
   return { system: draftSystem(st, kb), prompt, position: 0, based_on: lastIn.sent_at, key: v.key };
