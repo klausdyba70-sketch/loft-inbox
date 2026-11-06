@@ -860,6 +860,16 @@ mark{background:#f1dfa6}
 button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
 .mhead .mcol{margin-left:auto;color:var(--mute);font-size:12px;flex:none;padding:2px 4px}
 .vbar .ord{font-size:12px}.vbar .ord button{font-size:12px;height:28px;padding:0 10px;text-transform:none;letter-spacing:0}
+
+.calstats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}
+@media (max-width:560px){.calstats{grid-template-columns:minmax(0,1fr)}}
+.cst2{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:8px;box-shadow:var(--shadow)}
+.cst2>b{display:flex;align-items:center;gap:7px;font-size:13.5px}
+.cst2>b i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.cbar2{display:flex;height:8px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.cnum{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--mute)}
+.cnum em{font-style:normal;font-weight:700;color:var(--ink);font-family:var(--display);font-size:15px}
+.cst2 small{font-size:11.5px;color:var(--mute)}
 </style>
 </head>
 <body data-view="auth">
@@ -1515,6 +1525,19 @@ function reqMap() {
   for (const t of threads) if (t.reqDate && t.kind !== 'spam' && t.status !== 'spam' && (testMode || !t.isTest)) (m[t.reqDate] = m[t.reqDate] || []).push(t);
   return m;
 }
+// Auslastung: jeder Tag gilt als buchbar (= 100 %)
+function calStats(months) {
+  const res = { P: [0, 0], F: [0, 0] }; let days = 0;
+  for (const [y, m] of months) {
+    const n = new Date(y, m + 1, 0).getDate();
+    for (let d = 1; d <= n; d++) { days++; const inf = dayEv(isoOf(new Date(y, m, d))); for (const [k] of CSTU) { if (inf[k].lv === 2) res[k][0]++; else if (inf[k].lv === 1) res[k][1]++; } }
+  }
+  const pct = (x) => Math.round((x / days) * 100);
+  return `<div class="calstats">${CSTU.filter(([k]) => !calCfg || calCfg[k]).map(([k, l, col]) => { const [f, h] = res[k]; return `<div class="cst2"><b><i style="--c:${col}"></i>${l} Loft</b>
+    <div class="cbar2" role="img" aria-label="${pct(f)} Prozent voll, ${pct(h)} Prozent teilweise belegt"><span style="width:${pct(f)}%;background:${col}"></span><span style="width:${pct(h)}%;background:color-mix(in srgb,${col} 35%,transparent)"></span></div>
+    <div class="cnum"><span><em>${pct(f)} %</em> voll</span><span><em>${pct(h)} %</em> teilweise</span><span><em>${pct(f + h)} %</em> gebucht</span></div>
+    <small>${f} ganze Tage, ${h} Tage teilweise von ${days}</small></div>`; }).join('')}</div>`;
+}
 function calLegend() {
   return `<div class="callegend">
    <span><i class="dt" style="--c:var(--sP)"></i><b>Grün</b> = Penthouse Loft</span>
@@ -1562,6 +1585,7 @@ function renderCal() {
     <div class="seg"><button data-calmode="month" aria-pressed="${calMode === 'month'}">Monat</button><button data-calmode="half" aria-pressed="${calMode === 'half'}">6 Monate</button></div></div>
    ${calNeeds(keys) ? '<div class="calleg"><span>Lade …</span></div>' : ''}
    ${calNote()}
+   ${calOn() && !calNeeds(keys) ? calStats(calMode === 'half' ? [0, 1, 2, 3, 4, 5].map((i) => normYM(y, m + i)) : [[y, m]]) : ''}
    ${calMode === 'half'
     ? `${calLegend()}<div class="halfgrid">${[0, 1, 2, 3, 4, 5].map((i) => { const [yy, mm] = normYM(y, m + i); return `<div class="hm"><h3>${monthName(yy, mm)}</h3>${monthGrid(yy, mm, { sel: calSel })}</div>`; }).join('')}</div>${calSel ? dayPanel(calSel) : ''}`
     : `<div class="calwrap"><div>${monthGrid(y, m, { big: true, sel: calSel })}${calLegend()}</div>${dayPanel(calSel)}</div>`}`;
