@@ -28,6 +28,12 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 - Wissen kommt aus der Notion-FAQ (alle 6 Stunden neu). Ohne Notion setzt die KI Platzhalter für Preise.
 - Testmodus: `/api/test/new` erzeugt eine KI-Testanfrage (is_test), Senden in Testanfragen geht nie über Microsoft, `/api/test/reply` lässt die Testkundin antworten, `/api/test/clear` löscht alles.
 
+## Kalender
+
+- `/api/calendar?from=&to=` liest beide Kalender über die iCal-Adressen (inkl. wiederkehrender Termine) und gibt die Belegung zurück. Nur GET, nur für den Besitzer.
+- Anzeige: Kalender-Reiter (Monat, 6 Monate, Punkte pro Loft), Wunschtermin-Prüfung in jeder Anfrage, Mini-Kalender rechts.
+- Die KI bekommt den Kalenderstand zum Wunschtermin und freie Ausweichtage, nennt aber nie, wer gebucht hat.
+
 ## Arbeitsweise (Netlify-Credits sparen)
 
 - Entwickelt wird auf dem Zweig `dev`. Netlify baut ihn als Branch-Deploy unter https://dev--loftstudiocologne-inbox.netlify.app, das kostet keine Credits.
@@ -54,7 +60,9 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 
 KI: `ANTHROPIC_API_KEY` (geheim) und `NOTION_TOKEN` (geheim). Optional `AI_MODEL_FAST` / `AI_MODEL_WRITE` (Standard `claude-haiku-5-5`) und `NOTION_PAGE_ID`.
 
-Später: Google-Zugang, Freshdesk-Schlüssel.
+Kalender (nur lesen): `GCAL_PENTHOUSE_ICS` und `GCAL_FACTORY_ICS` (geheim), jeweils die "Privatadresse im iCal-Format" des Google-Kalenders. Über diese Adressen kann die App keine Termine anlegen oder ändern.
+
+Später: Freshdesk-Schlüssel.
 
 ## Bekannte, nicht geheime Werte
 

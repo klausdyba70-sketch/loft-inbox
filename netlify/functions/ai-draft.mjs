@@ -1,6 +1,6 @@
 // Antwortvorschlag schreiben. stream:true liefert den Text Wort für Wort und speichert am Ende.
 import { guard, json, requireOwner } from '../lib/core.mjs';
-import { draftVariant, draftPrompt, claudeStream, saveDraft } from '../lib/ai.mjs';
+import { draftVariant, draftPrompt, claudeStream, saveDraft, claude } from '../lib/ai.mjs';
 export default guard(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Nur POST' }, 405);
   const { db } = await requireOwner(req);

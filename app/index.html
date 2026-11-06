@@ -776,6 +776,70 @@ mark{background:#f1dfa6}
 .aigo svg{width:14px;height:14px}
 .aigo:hover{background:var(--primary);color:var(--on-primary)}
 .ctop .aierr{flex:1;min-width:0}
+
+/* ===== Kalender (nur lesen) ===== */
+.cal{grid-column:2/4;overflow-y:auto;padding:20px var(--gr) 32px var(--g)}
+@media (max-width:760px){.cal{grid-column:1}}
+.calh{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.calh h1{font-family:var(--display);font-weight:800;letter-spacing:-.035em;font-size:26px;margin:0;margin-right:auto}
+.calnav{display:flex;align-items:center;gap:6px}
+.calnav b{min-width:150px;text-align:center;font-size:15px;font-weight:600;text-transform:capitalize}
+.calnav .icon{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;font-size:18px;color:var(--ink)}
+.calleg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--mute);margin:0 0 14px}
+.calleg span{display:inline-flex;align-items:center;gap:6px}
+.calleg i{width:9px;height:9px;border-radius:50%;background:var(--c,var(--mute))}
+.calleg i.half{background:transparent;box-shadow:inset 0 0 0 1.6px var(--mute)}
+.calleg .rq::before{content:"";width:14px;height:14px;border-radius:5px;box-shadow:inset 0 0 0 1.6px var(--ai)}
+.calnote{background:var(--warn-soft);color:var(--warn);border-radius:14px;padding:12px 14px;font-size:13.5px;margin-bottom:14px}
+.calnote b{display:block;margin-bottom:2px}
+.calwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media (max-width:1100px){.calwrap{grid-template-columns:minmax(0,1fr)}}
+.calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.calgrid .mw{font-size:11px;color:var(--mute);text-align:center;padding:2px 0 4px;font-weight:600;letter-spacing:.04em}
+.cd{min-height:0;opacity:1;transition:none;position:relative;display:flex;flex-direction:column;align-items:stretch;gap:3px;min-width:0;border-radius:10px;text-align:left;color:var(--ink);background:transparent;padding:4px}
+.cd .n{font-size:12.5px;font-weight:500;width:24px;height:24px;display:grid;place-items:center;border-radius:50%;align-self:center}
+.cd .cdots{display:flex;gap:3px;justify-content:center;height:7px}
+.dt{width:7px;height:7px;border-radius:50%;background:var(--c)}
+.dt.half{background:transparent;box-shadow:inset 0 0 0 1.6px var(--c)}
+.dt.no{visibility:hidden}
+.cd.out{visibility:hidden}
+.cd.past{opacity:1}.cd.past .n{color:var(--mute)}
+.cd.today .n{background:var(--primary);color:var(--on-primary)}
+.cd.rq{box-shadow:inset 0 0 0 1.6px var(--ai)}
+.cd[aria-pressed="true"]{background:var(--primary-soft)}
+.cd:hover{background:var(--sunk)}
+.calgrid.big{gap:6px}
+.calgrid.big .cd{min-height:92px;background:var(--surface);border:1px solid var(--line);padding:6px;gap:4px}
+.calgrid.big .cd .n{align-self:flex-start}
+.calgrid.big .cd .cdots{justify-content:flex-start;position:absolute;top:13px;right:8px}
+.calgrid.big .cd[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-soft)}
+.cd .ev{font-size:11px;line-height:1.3;padding:1px 5px;border-radius:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--ink)}
+.cd .rqb{font-size:10.5px;font-weight:600;color:var(--ai);padding:0 3px}
+@media (max-width:900px){.calgrid.big .cd{min-height:58px}.cd .ev{display:none}.calgrid.big .cd .cdots{position:static;justify-content:center}.calgrid.big .cd .n{align-self:center}.cd .rqb{display:none}}
+.calday{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
+.calday h2{margin:0;font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:-.02em}
+.cstu{display:flex;flex-direction:column;gap:4px}
+.cstu>b{display:flex;align-items:center;gap:7px;font-size:13.5px}
+.cstu>b i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.cstu>b small{margin-left:auto;font-weight:600;font-size:12px}
+.cstu .free{color:var(--green)}.cstu .busy{color:var(--red)}.cstu .part{color:var(--orange)}
+.cstu .evl{font-size:12.5px;color:var(--soft);padding-left:16px;overflow-wrap:anywhere}
+.halfgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+@media (max-width:1100px){.halfgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.halfgrid{grid-template-columns:minmax(0,1fr)}}
+.hm{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;box-shadow:var(--shadow)}
+.hm h3{margin:0 0 6px;font-size:14px;font-weight:600;text-transform:capitalize}
+.hm .cd{padding:2px}.hm .cd .n{width:22px;height:22px;font-size:12px}
+/* Seitenspalte und Zusammenfassung */
+.sidecalh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sidecalh h3{margin:0}
+.dside .calgrid{gap:1px}
+.dside .cd{padding:2px}.dside .cd .n{width:24px;height:24px;font-size:12px}
+.avrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.avc{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:99px;background:rgb(255 255 255/.14);color:#fff}
+.avc i{width:8px;height:8px;border-radius:50%;background:#fff}
+.avc.lv0 i{background:#8fe0b0}.avc.lv1 i{background:#f2c27b}.avc.lv2 i{background:#ff9a8a}
+.avlist{display:flex;flex-direction:column;gap:6px}
 </style>
 </head>
 <body data-view="auth">
@@ -914,10 +978,11 @@ function appShell() {
   $('#root').innerHTML = `<div class="app">
    <nav class="rail" aria-label="Bereiche"><div class="logo" aria-hidden="true">L</div>
     <button class="nav" data-view="inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>Anfragen<span class="cnt" id="navcnt" hidden></span></button>
+    <button class="nav" data-view="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="9" cy="14.5" r="1" fill="currentColor"/><circle cx="15" cy="14.5" r="1" fill="currentColor"/></svg>Kalender</button>
     <button class="nav" data-view="set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>Einstellungen</button>
    </nav>
-   <aside class="pane list" id="list"></aside><section class="pane detail" id="detail"></section><section class="pane set" id="set"></section></div>`;
-  view = location.hash.startsWith('#einstellungen') ? 'set' : 'inbox';
+   <aside class="pane list" id="list"></aside><section class="pane detail" id="detail"></section><section class="pane set" id="set"></section><section class="pane cal" id="cal"></section></div>`;
+  view = location.hash.startsWith('#einstellungen') ? 'set' : location.hash.startsWith('#kalender') ? 'cal' : 'inbox';
   render();
   loadThreads();
   sb.from('settings').select('theme').maybeSingle().then(({ data }) => { if (data?.theme && data.theme !== settings.theme) { settings.theme = data.theme; applyTheme(); savePrefs(); if (view === 'set') render(); } });
@@ -927,6 +992,7 @@ function render() {
   document.querySelectorAll('.nav').forEach((n) => (n.dataset.view === view ? n.setAttribute('aria-current', 'page') : n.removeAttribute('aria-current')));
   const oc = threads.filter((t) => !t.isTest && t.kind !== 'sonstiges' && t.status === 'offen').length, nc = $('#navcnt'); if (nc) { nc.textContent = oc; nc.hidden = !oc; }
   if (view === 'set') { document.body.classList.remove('open'); renderSettings(); }
+  else if (view === 'cal') { document.body.classList.remove('open'); renderCal(); }
   else { renderList(); $('#detail').innerHTML = detailHTML(); bindDetail(); }
   $('#sheet').innerHTML = sheet ? sheetHTML() : '';
 }
@@ -1047,7 +1113,7 @@ function detailHTML() {
    <h2>${esc(t.subject)}</h2>
    <div class="mkrow" role="group" aria-label="Markierung">${Object.keys(COLORS).map((c) => `<button class="swb" data-c="${c}" aria-pressed="${t.color === c}" title="${COLOR_NAMES[c]}" style="--c:${COLORS[c]}"><i></i><span>${COLOR_NAMES[c]}</span></button>`).join('')}${t.color ? '<button class="swb clear" data-c="none" title="Markierung entfernen">×</button>' : ''}</div>
    <div class="pills">${stPill(t)}${t.prio === 'hoch' && t.status === 'offen' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color ? `<span class="pill"><span class="d" style="--c:${COLORS[t.color]}"></span>${COLOR_NAMES[t.color]}</span>` : ''}${t.studio !== 'X' ? `<span class="pill">${STUDIO[t.studio]}</span>` : ''}${t.cat ? `<span class="pill">${esc(t.cat)}</span>` : ''}</div>
-   ${t.summary ? `<div class="sum"><div class="ah">${I.spark}Zusammenfassung${t.reqDate ? `<span class="sumdate">Wunschtermin ${fmtDay(t.reqDate)}</span>` : ''}</div>${esc(t.summary)}</div>` : !t.aiAt && !aiOff ? `<div class="sum busy"><div class="ah">${I.spark}KI liest die Anfrage …</div></div>` : ''}
+   ${t.summary ? `<div class="sum"><div class="ah">${I.spark}Zusammenfassung${t.reqDate ? `<span class="sumdate">Wunschtermin ${fmtDay(t.reqDate)}</span>` : ''}</div>${esc(t.summary)}<div id="avrow">${availRow(t)}</div></div>` : !t.aiAt && !aiOff ? `<div class="sum busy"><div class="ah">${I.spark}KI liest die Anfrage …</div></div>` : ''}
    <div class="vbar"><span>Verlauf · ${msgs.length} ${msgs.length === 1 ? 'Nachricht' : 'Nachrichten'}</span></div>
    <div class="msgs">${msgs.length ? mails : '<div class="empty">Lade …</div>'}${testTyping[t.id] ? `<div class="mail typing"><span>${esc(t.name)} schreibt</span><span class="dots"><i></i><i></i><i></i></span></div>` : ''}</div>
   </div></div>
@@ -1176,6 +1242,7 @@ async function openThread(id) {
   renderList(); $('#detail').innerHTML = detailHTML(); bindDetail();
   const sc = $('#dscroll'); if (sc) sc.scrollTop = 0;
   if (!aiOff) { if (!current.aiAt) classifyNow(current); loadDrafts(current); }
+  calForThread(current);
 }
 const SEND_AS = [
   ['beantwortet', 'Wartet auf Kunde', 'Standard nach einer Antwort'],
@@ -1236,7 +1303,7 @@ function sideHTML(t) {
     <label class="prop">Studio${sel('studio', [['X', 'Nicht festgelegt'], ['P', 'Penthouse Loft'], ['F', 'Factory Loft']], t.studio)}</label>
     <label class="prop">Art der Anfrage${sel('cat', [['', 'Nicht festgelegt'], ...CATS.map((c) => [c, c])], t.cat || '')}</label>
     <label class="prop">Priorität${sel('prio', [['hoch', 'Hoch'], ['normal', 'Normal'], ['niedrig', 'Niedrig']], t.prio, 'is-p' + t.prio)}</label></section>
-   <section class="sbox2"><h3>Kalender</h3>${miniCal()}<p class="hint2">Belegung von Penthouse und Factory erscheint hier, sobald die Google-Kalender verbunden sind (nächster Schritt).</p></section>
+   <section class="sbox2" id="sidecal">${sideCalHTML(t)}</section>
   </aside>`;
 }
 document.addEventListener('change', async (e) => {
@@ -1332,16 +1399,18 @@ async function renderSettings() {
    <section class="scard"><h3>Darstellung</h3><div class="srow"><div class="stx"><b>Erscheinungsbild</b><small>System folgt der Einstellung deines Geräts</small></div><div class="seg">${th('light')}${th('dark')}${th('system')}</div></div></section>
    <section class="scard" id="mailcard"><h3>Postfach</h3><div class="srow"><div class="stx"><b>Lade Status …</b></div></div></section>
    <section class="scard" id="aicard"><h3>KI</h3><div class="srow"><div class="stx"><b>Lade Status …</b></div></div></section>
+   <section class="scard" id="calcard"><h3>Kalender</h3><div class="srow"><div class="stx"><b>Lade Status …</b></div></div></section>
    <section class="scard" id="replycard"><h3>Antworten</h3><div class="srow"><div class="stx"><b>Lade …</b></div></div></section>
    <section class="scard"><h3>Testmodus</h3>
     <div class="srow"><div class="stx"><b>Testmodus</b><small>Die KI schreibt dir als erfundene Kundin und antwortet auf deine Mails. Es geht nichts an echte Adressen.</small></div><button class="switch" role="switch" aria-checked="${testMode}" id="${testMode ? 'testoff' : 'teston'}" aria-label="Testmodus"><i></i></button></div>
     <div class="srow"><div class="stx"><b>Testdaten</b><small>Alle Testanfragen und Testkontakte entfernen</small></div><button class="mini" id="tclear">Löschen</button></div></section>
    <section class="scard"><h3>Konto</h3><div class="srow"><div class="stx"><b id="who">…</b><small>Angemeldet mit zweitem Faktor</small></div><button class="mini" id="logout">Abmelden</button></div></section>
-   <p class="sub" style="margin:0">KI, Kalender, Kontakte und Statistik folgen in den nächsten Schritten.</p></div>`;
+   <p class="sub" style="margin:0">Kontakte, Dokumente und Statistik folgen in den nächsten Schritten.</p></div>`;
   sb.auth.getUser().then(({ data }) => { const w = $('#who'); if (w) w.textContent = data.user?.email || ''; });
   const q = new URLSearchParams(location.hash.split('?')[1] || '');
   if (q.get('ms') === 'ok') { toast('Microsoft verbunden'); history.replaceState(null, '', '#einstellungen'); }
   else if (q.get('ms') === 'fehler') { toast('Microsoft: ' + (q.get('grund') || 'Fehler')); history.replaceState(null, '', '#einstellungen'); }
+  fillCalCard();
   let s; try { s = await api('/api/status'); } catch (e) { s = { error: e.message }; }
   const ac = $('#aicard');
   if (ac) { const ai = s.ai || {}; ac.innerHTML = `<h3>KI</h3>
@@ -1361,6 +1430,140 @@ async function renderSettings() {
    <div class="srow"><div class="stx"><b>Postfach bleibt unangetastet</b><small>Die App liest nur. Mail auf dem Mac und Freshdesk laufen unverändert weiter.</small></div></div>`;
 }
 
+
+// ---------- Kalender (nur lesen, Google über geheime iCal-Adressen) ----------
+const pad2 = (n) => String(n).padStart(2, '0');
+const isoOf = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const mkey = (y, m) => { const d = new Date(y, m, 1); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
+const CSTU = [['P', 'Penthouse', 'var(--sP)'], ['F', 'Factory', 'var(--sF)']];
+let calCache = {}, calWait = {}, calCfg = null, calErrs = {}, calMode = 'month', calSel = null;
+let calCursor = (() => { const n = new Date(); return [n.getFullYear(), n.getMonth()]; })();
+async function ensureCal(keys) {
+  const miss = [...new Set(keys)].filter((k) => !calCache[k] && !calWait[k]).sort();
+  if (miss.length) {
+    const [fy, fm] = miss[0].split('-').map(Number), [ly, lm] = miss[miss.length - 1].split('-').map(Number);
+    const p = api(`/api/calendar?from=${fy}-${pad2(fm)}-01&to=${isoOf(new Date(ly, lm, 1))}`).then((r) => {
+      calCfg = r.configured; calErrs = r.errors || {};
+      const evs = (r.events || []).map((e) => ({ ...e, s: new Date(e.start), e: new Date(e.end) }));
+      for (const k of miss) { const [y, m] = k.split('-').map(Number), a = new Date(y, m - 1, 1), b = new Date(y, m, 1); calCache[k] = evs.filter((x) => x.s < b && x.e > a); }
+    }).catch((err) => { calErrs = { all: err.message }; }).finally(() => { for (const k of miss) delete calWait[k]; });
+    for (const k of miss) calWait[k] = p;
+  }
+  await Promise.all(keys.map((k) => calWait[k]).filter(Boolean));
+}
+const calNeeds = (keys) => keys.some((k) => !calCache[k]);
+function dayEv(iso) {
+  const a = new Date(iso + 'T00:00:00'), b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 1);
+  const all = (calCache[iso.slice(0, 7)] || []).filter((x) => x.s < b && x.e > a);
+  const out = { a, b };
+  for (const [k] of CSTU) {
+    const ev = all.filter((x) => x.studio === k);
+    out[k] = { ev, lv: !ev.length ? 0 : ev.some((x) => x.allDay || (x.s <= a && x.e >= b)) ? 2 : 1 };
+  }
+  return out;
+}
+const hm = (d) => d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+function lvText(info, a, b) {
+  if (!info.lv) return 'frei';
+  if (info.lv === 2) return 'ganztägig belegt';
+  return 'belegt ' + info.ev.map((x) => `${hm(x.s < a ? a : x.s)}–${hm(x.e > b ? b : x.e)}`).join(', ');
+}
+const calOn = () => calCfg && (calCfg.P || calCfg.F);
+function reqMap() {
+  const m = {};
+  for (const t of threads) if (t.reqDate && t.kind !== 'spam' && t.status !== 'spam' && (testMode || !t.isTest)) (m[t.reqDate] = m[t.reqDate] || []).push(t);
+  return m;
+}
+function monthGrid(y, m, { big = false, sel = null, mark = null } = {}) {
+  const first = new Date(y, m, 1), off = (first.getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate(), today = isoOf(new Date()), rq = reqMap();
+  let c = WD.map((w) => `<span class="mw">${w}</span>`).join('');
+  for (let i = 0; i < off; i++) c += '<span class="cd out"></span>';
+  for (let d = 1; d <= days; d++) {
+    const iso = isoOf(new Date(y, m, d)), inf = dayEv(iso), n = rq[iso]?.length || 0;
+    const dots = CSTU.map(([k, , col]) => `<i class="dt ${inf[k].lv === 2 ? '' : inf[k].lv === 1 ? 'half' : 'no'}" style="--c:${col}"></i>`).join('');
+    const evs = big ? CSTU.flatMap(([k, , col]) => inf[k].ev.slice(0, 2).map((x) => `<span class="ev" style="--c:${col}" title="${esc(x.title)}">${x.allDay ? '' : hm(x.s < inf.a ? inf.a : x.s) + ' '}${esc(x.title || 'Belegt')}</span>`)).join('') : '';
+    const tip = CSTU.map(([k, l]) => `${l}: ${lvText(inf[k], inf.a, inf.b)}`).join(' · ') + (n ? ` · ${n} Anfrage${n > 1 ? 'n' : ''}` : '');
+    c += `<button class="cd ${iso === today ? 'today' : ''} ${iso < today ? 'past' : ''} ${n || iso === mark ? 'rq' : ''}" data-day="${iso}" aria-pressed="${iso === sel}" title="${esc(tip)}" aria-label="${d}. ${esc(tip)}"><span class="n">${d}</span><span class="cdots">${dots}</span>${evs}${big && n ? `<span class="rqb">${n} Anfrage${n > 1 ? 'n' : ''}</span>` : ''}</button>`;
+  }
+  return `<div class="calgrid ${big ? 'big' : ''}">${c}</div>`;
+}
+const monthName = (y, m) => new Date(y, m, 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+function calNote() {
+  if (calErrs.all) return `<div class="calnote"><b>Kalender nicht erreichbar</b>${esc(calErrs.all)}</div>`;
+  if (calCfg && !calOn()) return `<div class="calnote"><b>Kalender noch nicht verbunden</b>In Netlify fehlen GCAL_PENTHOUSE_ICS und GCAL_FACTORY_ICS (die iCal-Links der beiden Anny-Kalender).</div>`;
+  const e = CSTU.filter(([k]) => calErrs[k]).map(([k, l]) => `${l}: ${esc(calErrs[k])}`);
+  return e.length ? `<div class="calnote"><b>Ein Kalender hat nicht geantwortet</b>${e.join('<br>')}</div>` : '';
+}
+function dayPanel(iso) {
+  if (!iso) return `<aside class="calday"><h2>Tag wählen</h2><p class="hint2">Tippe auf einen Tag, um die Belegung beider Lofts und passende Anfragen zu sehen.</p></aside>`;
+  const inf = dayEv(iso), rq = reqMap()[iso] || [];
+  const d = new Date(iso + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  return `<aside class="calday"><h2>${d}</h2>
+   ${CSTU.map(([k, l, col]) => `<div class="cstu"><b><i style="--c:${col}"></i>${l} Loft<small class="${['free', 'part', 'busy'][inf[k].lv]}">${inf[k].lv === 0 ? 'frei' : inf[k].lv === 2 ? 'ganztägig belegt' : 'teilweise belegt'}</small></b>
+    ${inf[k].ev.map((x) => `<span class="evl">${x.allDay ? 'Ganzer Tag' : `${hm(x.s < inf.a ? inf.a : x.s)}–${hm(x.e > inf.b ? inf.b : x.e)}`} · ${esc(x.title || 'Belegt')}</span>`).join('')}</div>`).join('')}
+   ${rq.length ? `<div class="cstu"><b>Anfragen mit diesem Wunschtermin</b>${rq.map((t) => `<button class="orow" data-open="${t.id}"><span>${esc(t.name)} · ${esc(t.subject)}</span><small>${ST_LABEL[t.status]}${t.studio !== 'X' ? ' · ' + STUDIO[t.studio] : ''}</small></button>`).join('')}</div>` : ''}
+   <p class="hint2">Nur Lesen. Eintragen und Ändern läuft weiter über Anny und Google.</p></aside>`;
+}
+function renderCal() {
+  const el = $('#cal'); if (!el) return;
+  const [y, m] = calCursor;
+  const keys = calMode === 'half' ? [0, 1, 2, 3, 4, 5].map((i) => mkey(y, m + i)) : [mkey(y, m)];
+  el.innerHTML = `<div class="calh"><h1>Kalender</h1>
+    <div class="calnav"><button class="icon" data-calnav="-1" aria-label="Zurück">‹</button><b>${calMode === 'half' ? monthName(y, m).split(' ')[0] + ' – ' + monthName(...normYM(y, m + 5)) : monthName(y, m)}</b><button class="icon" data-calnav="1" aria-label="Weiter">›</button><button class="mini" data-calnav="0">Heute</button></div>
+    <div class="seg"><button data-calmode="month" aria-pressed="${calMode === 'month'}">Monat</button><button data-calmode="half" aria-pressed="${calMode === 'half'}">6 Monate</button></div></div>
+   <div class="calleg"><span><i style="--c:var(--sP)"></i>Penthouse</span><span><i style="--c:var(--sF)"></i>Factory</span><span><i class="half"></i>teilweise belegt</span><span><i></i>ganztägig</span><span class="rq">Wunschtermin einer Anfrage</span>${calNeeds(keys) ? '<span>Lade …</span>' : ''}</div>
+   ${calNote()}
+   ${calMode === 'half'
+    ? `<div class="halfgrid">${[0, 1, 2, 3, 4, 5].map((i) => { const [yy, mm] = normYM(y, m + i); return `<div class="hm"><h3>${monthName(yy, mm)}</h3>${monthGrid(yy, mm, { sel: calSel })}</div>`; }).join('')}</div>${calSel ? dayPanel(calSel) : ''}`
+    : `<div class="calwrap">${monthGrid(y, m, { big: true, sel: calSel })}${dayPanel(calSel)}</div>`}`;
+  if (calNeeds(keys)) ensureCal(keys).then(() => { if (view === 'cal') renderCal(); });
+}
+function normYM(y, m) { const d = new Date(y, m, 1); return [d.getFullYear(), d.getMonth()]; }
+// In der Anfrage: Wunschtermin prüfen
+function availRow(t) {
+  if (!t.reqDate) return '';
+  const k = t.reqDate.slice(0, 7);
+  if (!calCache[k]) return calErrs.all ? '' : '<div class="avrow"><span class="avc">Kalender wird geprüft …</span></div>';
+  if (!calOn()) return '';
+  const inf = dayEv(t.reqDate);
+  const list = CSTU.filter(([s]) => calCfg[s] && !calErrs[s]).sort((a, b) => (b[0] === t.studio) - (a[0] === t.studio));
+  return `<div class="avrow">${list.map(([s, l]) => `<span class="avc lv${inf[s].lv}"><i></i>${l} ${lvText(inf[s], inf.a, inf.b)}</span>`).join('')}</div>`;
+}
+function sideCalHTML(t) {
+  const base = t.reqDate ? new Date(t.reqDate + 'T12:00:00') : new Date(), y = base.getFullYear(), m = base.getMonth();
+  const inf = t.reqDate && calCache[t.reqDate.slice(0, 7)] ? dayEv(t.reqDate) : null;
+  return `<div class="sidecalh"><h3>Kalender</h3><button class="mini" data-calgo="${t.reqDate || isoOf(new Date())}">Öffnen</button></div>
+   <div class="mmh"><b>${monthName(y, m)}</b></div>${monthGrid(y, m, { mark: t.reqDate })}
+   ${calNote()}
+   ${inf && calOn() ? `<div class="avlist">${CSTU.filter(([s]) => calCfg[s]).map(([s, l, col]) => `<div class="cstu"><b><i style="--c:${col}"></i>${l}<small class="${['free', 'part', 'busy'][inf[s].lv]}">${lvText(inf[s], inf.a, inf.b)}</small></b></div>`).join('')}<p class="hint2">Stand für ${fmtDay(t.reqDate)}</p></div>` : ''}`;
+}
+function fillAvail() {
+  if (!current) return;
+  const a = $('#avrow'); if (a) a.innerHTML = availRow(current);
+  const s = $('#sidecal'); if (s) s.innerHTML = sideCalHTML(current);
+}
+function calForThread(t) {
+  if (!t) return;
+  const k = (t.reqDate || isoOf(new Date())).slice(0, 7);
+  if (calNeeds([k])) ensureCal([k]).then(() => { if (current?.id === t.id) fillAvail(); });
+}
+async function fillCalCard() {
+  const today = isoOf(new Date()), k = today.slice(0, 7);
+  await ensureCal([k]);
+  const c = $('#calcard'); if (!c) return;
+  c.innerHTML = `<h3>Kalender</h3>${CSTU.map(([s, l]) => { const on = calCfg?.[s], err = calErrs[s] || calErrs.all; return `<div class="srow"><div class="stx"><b>${l} Loft</b><small>${err ? esc(err) : on ? 'Verbunden, nur Lesen' : (s === 'P' ? 'GCAL_PENTHOUSE_ICS' : 'GCAL_FACTORY_ICS') + ' fehlt in Netlify'}</small></div><span class="cst ${on && !err ? 'ok' : 'todo'}">${on && !err ? 'Aktiv' : on ? 'Prüfen' : 'Einrichten'}</span></div>`; }).join('')}
+   <div class="srow"><div class="stx"><b>Nur Lesen</b><small>Die App kann über die iCal-Adressen keine Termine anlegen oder ändern. Anny und Google laufen unverändert weiter.</small></div></div>`;
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-calnav],[data-calmode],[data-day],[data-calgo],[data-open]'); if (!b) return;
+  if (b.dataset.open) { view = 'inbox'; history.replaceState(null, '', '#'); render(); openThread(b.dataset.open); return; }
+  if (b.dataset.calgo) { const d = new Date(b.dataset.calgo + 'T12:00:00'); calCursor = [d.getFullYear(), d.getMonth()]; calSel = b.dataset.calgo; calMode = 'month'; view = 'cal'; history.replaceState(null, '', '#kalender'); render(); return; }
+  if (view !== 'cal') { if (b.dataset.day) { const d = new Date(b.dataset.day + 'T12:00:00'); calCursor = [d.getFullYear(), d.getMonth()]; calSel = b.dataset.day; calMode = 'month'; view = 'cal'; history.replaceState(null, '', '#kalender'); render(); } return; }
+  if (b.dataset.calnav) { const n = +b.dataset.calnav; if (!n) { const t = new Date(); calCursor = [t.getFullYear(), t.getMonth()]; calSel = isoOf(t); } else calCursor = normYM(calCursor[0], calCursor[1] + n * (calMode === 'half' ? 6 : 1)); renderCal(); return; }
+  if (b.dataset.calmode) { calMode = b.dataset.calmode; renderCal(); return; }
+  if (b.dataset.day) { calSel = b.dataset.day; if (calMode === 'half') { const d = new Date(calSel + 'T12:00:00'); calCursor = [d.getFullYear(), d.getMonth()]; calMode = 'month'; } renderCal(); }
+});
+
 // ---------- Klicks ----------
 document.addEventListener('click', async (e) => {
   if (e.target.id === 'scrim') { sheet = null; render(); return; }
@@ -1371,7 +1574,7 @@ document.addEventListener('click', async (e) => {
   if (sendMenu && !(b && (b.id === 'sendmenu' || b.dataset.sendas))) { sendMenu = false; if (current) redrawDetail(); if (!b) return; }
   if (!b || !sb) return;
   const t = current;
-  if (b.dataset.view) { view = b.dataset.view; sheet = null; history.replaceState(null, '', view === 'set' ? '#einstellungen' : '#'); render(); return; }
+  if (b.dataset.view) { view = b.dataset.view; sheet = null; history.replaceState(null, '', view === 'set' ? '#einstellungen' : view === 'cal' ? '#kalender' : '#'); render(); return; }
   if (b.dataset.f) { filter = b.dataset.f; page = 0; renderList(); return; }
   if (b.dataset.box) { box = b.dataset.box; page = 0; filter = 'alle'; renderList(); return; }
   if (b.id === 'tnew') { testNew(); return; }

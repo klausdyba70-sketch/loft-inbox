@@ -1,4 +1,5 @@
 // KI für die Loft Inbox: Einstufung, Antwortvorschläge, Verfeinern, Fragen, Testmodus
+import { availabilityForPrompt } from './cal.mjs';
 import { MAILBOX } from './core.mjs';
 
 const MODEL_FAST = process.env.AI_MODEL_FAST || 'claude-haiku-5-5';
@@ -125,7 +126,7 @@ async function knowledge(db, focus = '') {
 
 // ---------- Verlauf laden ----------
 async function loadThread(db, threadId) {
-  const { data: t } = await db.from('threads').select('id,subject,status,studio,category,priority,ai_at,is_test,summary,contacts(name,email)').eq('id', threadId).maybeSingle();
+  const { data: t } = await db.from('threads').select('id,subject,status,studio,category,priority,ai_at,is_test,summary,requested_date,contacts(name,email)').eq('id', threadId).maybeSingle();
   if (!t) throw Object.assign(new Error('Anfrage nicht gefunden'), { status: 404 });
   const { data: msgs } = await db.from('messages').select('direction,body_text,sent_at').eq('thread_id', threadId).order('sent_at');
   return { t, msgs: msgs || [] };
@@ -192,13 +193,16 @@ async function styleSamples(db, threadId) {
 export async function draftPrompt(db, threadId, variantKey) {
   const v = VARIANTS.find((x) => x.key === variantKey) || VARIANTS[0];
   const [{ t, msgs }, st, samples] = await Promise.all([loadThread(db, threadId), settingsRow(db), styleSamples(db, threadId)]);
-  const kb = await knowledge(db, t.subject + ' ' + msgs.slice(-4).map((m) => m.body_text || '').join(' '));
+  const [kb, cal] = await Promise.all([
+    knowledge(db, t.subject + ' ' + msgs.slice(-4).map((m) => m.body_text || '').join(' ')),
+    availabilityForPrompt(t.requested_date, t.studio).catch(() => ''),
+  ]);
   const lastIn = [...msgs].reverse().find((m) => m.direction === 'in');
   if (!lastIn) throw Object.assign(new Error('Keine Kundenmail zum Beantworten'), { status: 409 });
   const system = `Du schreibst E-Mail-Antworten für Klaus von Loft Studio Cologne. Deutsch, natürlich, freundlich und klar, wie ein Mensch, nicht wie ein Callcenter.
 Regeln:
 - Nutze nur Fakten aus dem Wissen unten. Erfinde keine Preise, Zeiten oder Zusagen. Fehlt eine Angabe, setze einen Platzhalter in eckigen Klammern, z. B. [Preis Tagesmiete] oder [Verfügbarkeit prüfen].
-- Bestätige keine Verfügbarkeit als sicher, außer der Verlauf sagt es. Formuliere sonst z. B. "Ich schaue gleich in den Kalender" oder setze [Verfügbarkeit prüfen].
+${cal ? `- Kalenderstand siehe unten. Ist der Tag frei: schreibe, dass er Stand jetzt noch frei ist, aber erst mit Bestätigung fest reserviert ist. Ist er belegt: sag das freundlich und biete die freien Tage in der Nähe an. Nenne nie, wer gebucht hat oder was der Termin ist.` : `- Bestätige keine Verfügbarkeit als sicher, außer der Verlauf sagt es. Formuliere sonst z. B. "Ich schaue gleich in den Kalender" oder setze [Verfügbarkeit prüfen].`}
 - Anrede: übernimm Du oder Sie vom Kunden. Ist das unklar, nimm "${st.tone === 'sie' ? 'Sie' : 'Du'}".
 - Keine Gedankenstriche, keine Emojis, kein Markdown, keine Betreffzeile.
 - Beginne mit einer passenden Begrüßung mit Namen, ende mit genau dieser Signatur:
@@ -209,7 +213,7 @@ ${kb}`;
   const prompt = `${todayLine()}
 Kunde: ${t.contacts?.name || ''} <${t.contacts?.email || ''}>
 Betreff: ${t.subject}
-${t.summary ? 'Zusammenfassung: ' + t.summary + '\n' : ''}
+${t.summary ? 'Zusammenfassung: ' + t.summary + '\n' : ''}${cal ? cal + '\n' : ''}
 Verlauf (neueste zuletzt):
 ${convoText(msgs)}
 
@@ -231,41 +235,46 @@ export function parseDraft(raw, key) {
 }
 export async function saveDraft(db, threadId, d, raw) {
   const { label, body } = parseDraft(raw, d.key);
-  if (!body) throw new Error('Die KI hat keinen Text geliefert. Bitte nochmal versuchen.');
+  if (!body) throw new Error('Die KI hat keinen Text geliefert' + (d.diag ? ' (' + d.diag + ')' : '') + '. Bitte nochmal versuchen.');
   await db.from('drafts').delete().eq('thread_id', threadId).eq('position', d.position);
   await db.from('drafts').insert({ thread_id: threadId, label, body, position: d.position, based_on: d.based_on });
   return { label, body, position: d.position, based_on: d.based_on };
 }
 export async function draftVariant(db, threadId, variantKey) {
   const d = await draftPrompt(db, threadId, variantKey);
-  const raw = await claude({ model: MODEL_WRITE, system: d.system, prompt: d.prompt, max_tokens: 700 });
+  const raw = await claude({ model: MODEL_WRITE, system: d.system, prompt: d.prompt, max_tokens: 1500 });
   return saveDraft(db, threadId, d, raw);
 }
 // Wort für Wort: liefert Text-Stücke, sobald die KI sie schreibt
-export async function* claudeStream({ model = MODEL_WRITE, system, prompt, max_tokens = 700 }) {
+export async function* claudeStream({ model = MODEL_WRITE, system, prompt, max_tokens = 1500, info = {} }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error('ANTHROPIC_API_KEY fehlt in Netlify'), { status: 409 });
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', accept: 'text/event-stream' },
     body: JSON.stringify({ model, max_tokens, system, stream: true, messages: [{ role: 'user', content: prompt }] }),
   });
   if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error('KI: ' + (j.error?.message || 'Fehler ' + r.status)); }
+  info.types = new Set();
   const reader = r.body.getReader(), dec = new TextDecoder();
   let buf = '';
+  const handle = function* (line) {
+    line = line.trim();
+    if (!line.startsWith('data:')) return;
+    let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch (e) { return; }
+    info.types.add(ev.type + (ev.delta?.type ? '/' + ev.delta.type : '') + (ev.content_block?.type ? '/' + ev.content_block.type : ''));
+    if (ev.type === 'message_delta' && ev.delta?.stop_reason) info.stop = ev.delta.stop_reason;
+    if (ev.type === 'error') throw new Error('KI: ' + (ev.error?.message || 'Fehler'));
+    if (ev.type === 'content_block_delta' && typeof ev.delta?.text === 'string') yield ev.delta.text;
+  };
   for (;;) {
     const { value, done } = await reader.read();
     if (done) break;
-    buf += dec.decode(value, { stream: true });
+    buf += dec.decode(value, { stream: true }).replace(/\r/g, '');
     let i;
-    while ((i = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
-      if (!line.startsWith('data:')) continue;
-      let ev; try { ev = JSON.parse(line.slice(5)); } catch (e) { continue; }
-      if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') yield ev.delta.text;
-      if (ev.type === 'error') throw new Error('KI: ' + (ev.error?.message || 'Fehler'));
-    }
+    while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); yield* handle(line); }
   }
+  if (buf) yield* handle(buf);
 }
 
 export async function refineText(text, instruction) {
