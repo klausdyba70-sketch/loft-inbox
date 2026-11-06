@@ -10,6 +10,7 @@ const WD = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'
 
 // Grundwissen, falls Notion (noch) nicht verbunden ist. Preise stehen bewusst NICHT hier.
 const BASE_FACTS = `Loft Studio Cologne, Köln. Zwei Mietstudios:
+Sprache: Es heißt DAS Factory Loft und DAS Penthouse Loft (sächlich, wie "das Loft"). Also: das Factory Loft ist frei, im Factory Loft, für das Penthouse Loft, des Penthouse Lofts. Nie "der" oder "die" Factory/Penthouse Loft.
 - Factory Loft: Foto, Film, Seminare und Workshops. 4 Tische à 4 Personen, 16 Stühle, max. 16 Personen. Styling- und Make-up-Ecke.
 - Penthouse Loft: max. 20 Personen. Küche mit Kapselmaschine (kompostierbare Kapseln) und Milchschäumer. Make-up-Raum. Bad mit Dusche im WC.
 - Beide Lofts zusammen ca. 180 m², davon ca. 120 m² Arbeitsraum.
