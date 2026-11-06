@@ -4,9 +4,9 @@ import { draftVariant, draftPrompt, claudeStream, saveDraft, claude } from '../l
 export default guard(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Nur POST' }, 405);
   const { db } = await requireOwner(req);
-  const { threadId, variant, stream } = await req.json();
+  const { threadId, variant, stream, current, instruction } = await req.json();
   if (!stream) return json({ ok: true, draft: await draftVariant(db, threadId, variant) });
-  const d = await draftPrompt(db, threadId, variant);
+  const d = await draftPrompt(db, threadId, variant, { current: String(current || '').slice(0, 8000), instruction: String(instruction || '').slice(0, 400) });
   const enc = new TextEncoder();
   const body = new ReadableStream({
     async start(ctrl) {

@@ -805,7 +805,7 @@ mark{background:#f1dfa6}
 .cd.out{visibility:hidden}
 .cd.past{opacity:1}.cd.past .n{color:var(--mute)}
 .cd.today .n{background:var(--primary);color:var(--on-primary)}
-.cd.rq{box-shadow:inset 0 0 0 1.6px var(--ai)}
+.cd.rq{}
 .cd[aria-pressed="true"]{background:var(--primary-soft)}
 .cd:hover{background:var(--sunk)}
 .calgrid.big{gap:6px}
@@ -840,6 +840,13 @@ mark{background:#f1dfa6}
 .avc i{width:8px;height:8px;border-radius:50%;background:#fff}
 .avc.lv0 i{background:#8fe0b0}.avc.lv1 i{background:#f2c27b}.avc.lv2 i{background:#ff9a8a}
 .avlist{display:flex;flex-direction:column;gap:6px}
+
+.aiedit{display:flex;align-items:center;gap:8px;margin-top:8px;padding:4px 4px 4px 12px;border:1px solid var(--ai-line);background:var(--ai-soft);border-radius:12px}
+.aiedit .ailbl{color:var(--ai)}
+.aiedit input{flex:1;min-width:0;border:0;background:none;outline:none;font-size:15px;color:var(--ink);height:34px}
+.aiedit input::placeholder{color:var(--mute)}
+.aiedit:focus-within{border-color:var(--ai)}
+.aibusy{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mute)}
 </style>
 </head>
 <body data-view="auth">
@@ -1121,6 +1128,7 @@ function detailHTML() {
    <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
    <div id="dbar">${draftBarHTML(t)}</div>
    <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${Math.min(composerH, Math.round(innerHeight * 0.5))}px">${esc(drafts[t.id] || '')}</textarea>
+   ${aiOff ? '' : `<form class="aiedit" id="aiedit" autocomplete="off"><span class="ailbl">${I.spark}</span><input id="aiins" enterkeyhint="send" placeholder="Was soll die KI ändern? z. B. Overtime-Preis nennen, kürzer, Sie-Form" aria-label="Änderungswunsch an die KI"><button type="submit" class="mini">Ändern</button></form>`}
    <div class="cbar"><small class="saved" id="saved">${drafts[t.id] ? 'Entwurf gespeichert' : ''}</small><span class="sp" style="flex:1"></span>
     <button class="icon" id="discard" title="Entwurf verwerfen" aria-label="Entwurf verwerfen" ${drafts[t.id] ? '' : 'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg></button>
     <div class="sendsplit">${sendMenu ? `<div class="smenu" role="menu"><h4>Senden und festlegen als</h4>${SEND_AS.map(([k, l, sub]) => `<button role="menuitem" data-sendas="${k}"><b>${l}</b><small>${sub}</small></button>`).join('')}</div>` : ''}
@@ -1153,8 +1161,8 @@ function bindDetail() {
 }
 function redrawDetail() { const s = $('#dscroll')?.scrollTop, a = document.activeElement, fid = a && a.id === 'draft' ? [a.selectionStart, a.selectionEnd] : null; $('#detail').innerHTML = detailHTML(); bindDetail(); if ($('#dscroll')) $('#dscroll').scrollTop = s; if (fid) { const ta = $('#draft'); if (ta) { ta.focus(); ta.setSelectionRange(fid[0], fid[1]); } } }
 // ---------- KI im Verlauf ----------
-const VARS = ['direkt', 'ausfuehrlich', 'rueckfrage'];
-const VLABEL = { direkt: 'Direkt', ausfuehrlich: 'Ausführlich', rueckfrage: 'Rückfrage' };
+const VARS = ['direkt'];
+const VLABEL = { direkt: 'KI-Vorschlag' };
 const REFINE = [['Kürzer', 'Mach den Text deutlich kürzer.'], ['Freundlicher', 'Mach den Ton wärmer und persönlicher.'], ['Sie-Form', 'Schreibe den Text in der Sie-Form.'], ['Du-Form', 'Schreibe den Text in der Du-Form.'], ['+ Besichtigung', 'Biete zusätzlich eine unverbindliche Besichtigung der Lofts an.']];
 function refreshDraftBar(t) { if (current?.id !== t.id) return; const el = $('#dbar'); if (!el) return redrawDetail(); el.innerHTML = draftBarHTML(t); const ta = $('#draft'); if (ta && !ta.value && drafts[t.id]) ta.value = drafts[t.id]; }
 function lastInAt() { const m = [...msgs].reverse().find((x) => x.direction === 'in'); return m ? m.sent_at : null; }
@@ -1163,11 +1171,9 @@ function draftBarHTML(t) {
   const ds = aiDrafts[t.id] || [], busy = aiBusy[t.id];
   const cur = curVar[t.id] ?? 0;
   const err = aiErr[t.id];
-  if (!ds.length && !busy) return `<div class="ctop"><button class="aigo" id="dgen">${I.spark}Antwortvorschläge schreiben</button>${err ? `<span class="aierr">${esc(err)}</span>` : ''}</div>`;
-  const chips = VARS.map((k, i) => { const d = ds.find((x) => x.position === i); if (d) return `<button data-dv="${i}" data-pos="${i}" aria-pressed="${cur === i}">${esc(d.label)}</button>`; if (busy) return `<button disabled><span class="dots"><i></i><i></i><i></i></span></button>`; if (err) return `<button data-dretry="${k}" class="verr" title="${esc(err)}">${VLABEL[k]} ↻</button>`; return `<button data-dretry="${k}">${VLABEL[k]}</button>`; }).join('');
-  return `<div class="ctop"><span class="ailbl">${I.spark}KI</span><div class="seg dvseg" role="group" aria-label="Antwortvorschläge">${chips}</div><button class="mini" id="dregen" ${busy ? 'disabled' : ''} title="Neue Vorschläge">↻</button></div>
-   ${err && !busy ? `<div class="aierr">${esc(err)}</div>` : ''}
-   <div class="refine">${REFINE.map(([l], i) => `<button data-rf="${i}">${l}</button>`).join('')}</div>`;
+  if (!ds.length && !busy) return `<div class="ctop"><button class="aigo" id="dgen">${I.spark}Antwort schreiben</button>${err ? `<span class="aierr">${esc(err)}</span>` : ''}</div>`;
+  return `<div class="ctop"><span class="ailbl">${I.spark}KI-Vorschlag</span>${busy ? '<span class="aibusy">schreibt <span class="dots"><i></i><i></i><i></i></span></span>' : ''}<span style="flex:1"></span><button class="mini" id="dregen" ${busy ? 'disabled' : ''} title="Ganz neu schreiben">↻ Neu</button></div>
+   ${err && !busy ? `<div class="aierr">${esc(err)}</div>` : ''}`;
 }
 async function loadDrafts(t) {
   const { data } = await sb.from('drafts').select('label,body,position,based_on').eq('thread_id', t.id).order('position');
@@ -1181,9 +1187,9 @@ function fillFirst(t) {
   const d = (aiDrafts[t.id] || []).find((x) => x.position === (curVar[t.id] ?? 0)) || (aiDrafts[t.id] || [])[0];
   if (d && !drafts[t.id]) { drafts[t.id] = d.body; curVar[t.id] = d.position; }
 }
-async function streamDraft(t, k) {
+async function streamDraft(t, k, opts = {}) {
   const { data } = await sb.auth.getSession();
-  const r = await fetch('/api/ai/draft', { method: 'POST', headers: { authorization: 'Bearer ' + data.session.access_token, 'content-type': 'application/json' }, body: JSON.stringify({ threadId: t.id, variant: k, stream: true }) });
+  const r = await fetch('/api/ai/draft', { method: 'POST', headers: { authorization: 'Bearer ' + data.session.access_token, 'content-type': 'application/json' }, body: JSON.stringify({ threadId: t.id, variant: k, stream: true, ...opts }) });
   if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error(j.error || (r.status >= 500 ? 'Die KI hat zu lange gebraucht. Bitte nochmal versuchen.' : 'Fehler ' + r.status)); }
   const pos = VARS.indexOf(k), reader = r.body.getReader(), dec = new TextDecoder();
   let raw = '';
@@ -1198,8 +1204,9 @@ async function streamDraft(t, k) {
       throw new Error(err[1]);
     }
     const m = raw.match(/^\s*(?:LABEL|Label|Ansatz)\s*:\s*(.+)\n+/);
-    const label = m ? m[1].replace(/[*"]/g, '').trim() : (raw.includes('\n') ? VLABEL[k] : '…');
-    const body = (m ? raw.slice(m[0].length) : raw.includes('\n') && !/^\s*LABEL/i.test(raw) ? raw : '').replace(/\s+—\s+|\s+–\s+/g, ', ');
+    const label = m ? m[1].replace(/[*"]/g, '').trim() : VLABEL[k];
+    const maybeLabel = /^\s*(L|LA|LAB|LABE|LABEL)$/i.test(raw.slice(0, 6).trim()) || (/^\s*LABEL/i.test(raw) && !m);
+    const body = (m ? raw.slice(m[0].length) : maybeLabel ? '' : raw).replace(/\s+—\s+|\s+–\s+/g, ', ');
     const prevBody = entry.body; entry.label = label.slice(0, 30); entry.body = body;
     // Wort für Wort ins Antwortfeld, solange dieser Vorschlag gewählt ist und du nichts geändert hast
     if (current?.id === t.id && (curVar[t.id] ?? 0) === pos) { const ta = $('#draft'); if (ta && (ta.value === prevBody || !ta.value)) { ta.value = body; drafts[t.id] = body; } }
@@ -1219,6 +1226,17 @@ async function genDrafts(t) {
     refreshDraftBar(t);
   }));
   aiBusy[t.id] = false; refreshDraftBar(t);
+}
+async function editDraft(t, ins) {
+  if (aiBusy[t.id]) return;
+  const ta = $('#draft'), old = (ta?.value || '').trim();
+  aiBusy[t.id] = true; aiErr[t.id] = null; curVar[t.id] = 0;
+  drafts[t.id] = ''; if (ta) ta.value = '';
+  const inp = $('#aiins'); if (inp) inp.disabled = true;
+  refreshDraftBar(t);
+  try { await streamDraft(t, 'direkt', old ? { current: old, instruction: ins } : { instruction: ins }); if (inp && current?.id === t.id) inp.value = ''; }
+  catch (e) { aiErr[t.id] = e.message; drafts[t.id] = old; const t2 = $('#draft'); if (t2 && current?.id === t.id) t2.value = old; saveDrafts(); }
+  aiBusy[t.id] = false; const i2 = $('#aiins'); if (i2) i2.disabled = false; refreshDraftBar(t);
 }
 async function classifyNow(t) {
   try { await api('/api/ai/classify', { threadId: t.id }); await loadThreads(); if (current?.id === t.id) { redrawDetail(); } }
@@ -1516,7 +1534,7 @@ function renderCal() {
   el.innerHTML = `<div class="calh"><h1>Kalender</h1>
     <div class="calnav"><button class="icon" data-calnav="-1" aria-label="Zurück">‹</button><b>${calMode === 'half' ? monthName(y, m).split(' ')[0] + ' – ' + monthName(...normYM(y, m + 5)) : monthName(y, m)}</b><button class="icon" data-calnav="1" aria-label="Weiter">›</button><button class="mini" data-calnav="0">Heute</button></div>
     <div class="seg"><button data-calmode="month" aria-pressed="${calMode === 'month'}">Monat</button><button data-calmode="half" aria-pressed="${calMode === 'half'}">6 Monate</button></div></div>
-   <div class="calleg"><span><i style="--c:var(--sP)"></i>Penthouse</span><span><i style="--c:var(--sF)"></i>Factory</span><span><i class="half"></i>teilweise belegt</span><span><i></i>ganztägig</span><span class="rq">Wunschtermin einer Anfrage</span>${calNeeds(keys) ? '<span>Lade …</span>' : ''}</div>
+   <div class="calleg"><span><i style="--c:var(--sP)"></i>Penthouse</span><span><i style="--c:var(--sF)"></i>Factory</span><span><i class="half"></i>teilweise belegt</span><span><i></i>ganztägig</span>${calNeeds(keys) ? '<span>Lade …</span>' : ''}</div>
    ${calNote()}
    ${calMode === 'half'
     ? `<div class="halfgrid">${[0, 1, 2, 3, 4, 5].map((i) => { const [yy, mm] = normYM(y, m + i); return `<div class="hm"><h3>${monthName(yy, mm)}</h3>${monthGrid(yy, mm, { sel: calSel })}</div>`; }).join('')}</div>${calSel ? dayPanel(calSel) : ''}`
@@ -1569,6 +1587,11 @@ document.addEventListener('click', (e) => {
   if (b.dataset.day) { calSel = b.dataset.day; if (calMode === 'half') { const d = new Date(calSel + 'T12:00:00'); calCursor = [d.getFullYear(), d.getMonth()]; calMode = 'month'; } renderCal(); }
 });
 
+document.addEventListener('submit', (e) => {
+  if (e.target.id !== 'aiedit') return; e.preventDefault();
+  const v = $('#aiins')?.value.trim(); if (!v || !current) return;
+  editDraft(current, v);
+});
 // ---------- Klicks ----------
 document.addEventListener('click', async (e) => {
   if (e.target.id === 'scrim') { sheet = null; render(); return; }

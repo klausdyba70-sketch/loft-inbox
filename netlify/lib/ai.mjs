@@ -16,6 +16,8 @@ const BASE_FACTS = `Loft Studio Cologne, Köln. Zwei Mietstudios:
 - Keine Vorauszahlung, die Rechnung kommt nach der Miete. Eigenes Catering ist möglich.
 - Equipment wird nicht vermietet, C-Stands kostenfrei auf Anfrage.`;
 
+// Lange, gleichbleibende Anweisungen (FAQ) zwischenspeichern: schneller und günstiger
+const sys = (system) => (system && system.length > 6000 ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] : system);
 export async function claude({ model = MODEL_FAST, system, prompt, max_tokens = 1000, timeoutMs = 25000 }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error('ANTHROPIC_API_KEY fehlt in Netlify'), { status: 409 });
@@ -23,7 +25,7 @@ export async function claude({ model = MODEL_FAST, system, prompt, max_tokens = 
     method: 'POST',
     signal: AbortSignal.timeout(timeoutMs),
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model, max_tokens, system, messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify({ model, max_tokens, system: sys(system), messages: [{ role: 'user', content: prompt }] }),
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error('KI: ' + (j.error?.message || 'Fehler ' + r.status)), { status: r.status === 401 ? 409 : 502 });
@@ -178,51 +180,60 @@ JSON: {"kind":"anfrage|sonstiges|spam","spam_score":0,"studio":"P|F|X","category
 
 // ---------- Antwortvorschläge (eine Variante pro Aufruf, damit es schnell bleibt) ----------
 export const VARIANTS = [
-  { key: 'direkt', hint: 'Kurz und direkt: beantwortet die Frage klar, schlägt den nächsten Schritt vor (z. B. Angebot schicken, Termin reservieren). 3 bis 6 Sätze.' },
-  { key: 'ausfuehrlich', hint: 'Ausführlich und herzlich: beantwortet alle Fragen mit den passenden Fakten zum Loft, nennt Ablauf und Konditionen, lädt zur Besichtigung ein.' },
-  { key: 'rueckfrage', hint: 'Rückfrage oder Alternative: fragt gezielt nach fehlenden Angaben (Datum, Uhrzeit, Personen, Art der Produktion) oder bietet eine Alternative an, falls etwas unklar oder nicht möglich ist.' },
+  { key: 'direkt', hint: 'Die beste Antwort auf diese Anfrage: beantwortet alle Fragen konkret mit Fakten und Preisen aus dem Wissen, macht den nächsten Schritt klar (z. B. Reservierung, Angebot). Klar und freundlich, eher kurz.' },
 ];
 async function settingsRow(db) {
   let { data, error } = await db.from('settings').select('tone,signature,ai_rules').eq('id', true).maybeSingle();
-  if (error) ({ data } = await db.from('settings').select('tone,signature').eq('id', true).maybeSingle()); // Spalte rules noch nicht angelegt
+  if (error) ({ data } = await db.from('settings').select('tone,signature').eq('id', true).maybeSingle()); // Spalte ai_rules noch nicht angelegt
   return { tone: 'du', signature: 'Viele Grüße\nKlaus\nLoft Studio Cologne', ...(data || {}), rules: data?.ai_rules || '' };
 }
 async function styleSamples(db, threadId) {
   const { data } = await db.from('messages').select('body_text,thread_id').eq('direction', 'out').neq('thread_id', threadId).order('sent_at', { ascending: false }).limit(6);
-  return (data || []).map((m) => (m.body_text || '').slice(0, 700)).filter((x) => x.length > 60).slice(0, 4);
+  return (data || []).map((m) => (m.body_text || '').slice(0, 700)).filter((x) => x.length > 60).slice(0, 3);
 }
-export async function draftPrompt(db, threadId, variantKey) {
-  const v = VARIANTS.find((x) => x.key === variantKey) || VARIANTS[0];
-  const [{ t, msgs }, st, samples] = await Promise.all([loadThread(db, threadId), settingsRow(db), styleSamples(db, threadId)]);
-  const [kb, cal] = await Promise.all([
-    knowledge(db, t.subject + ' ' + (st.rules || '') + ' ' + msgs.slice(-4).map((m) => m.body_text || '').join(' ')),
-    availabilityForPrompt(t.requested_date, t.studio).catch(() => ''),
-  ]);
-  const lastIn = [...msgs].reverse().find((m) => m.direction === 'in');
-  if (!lastIn) throw Object.assign(new Error('Keine Kundenmail zum Beantworten'), { status: 409 });
-  const system = `Du schreibst E-Mail-Antworten für Klaus von Loft Studio Cologne. Deutsch, natürlich, freundlich und klar, wie ein Mensch, nicht wie ein Callcenter.
+// Die ganze FAQ aus Notion (wie beim Website-Chatbot), wird zwischengespeichert und ist deshalb schnell
+async function knowledgeFull(db) {
+  const { data } = await db.from('knowledge').select('content').limit(5);
+  const notion = (data || []).map((r) => r.content).join('\n\n').slice(0, 70000);
+  return notion ? `${BASE_FACTS}\n\nFAQ aus Notion (gilt vorrangig, auch für alle Preise):\n${notion}` : BASE_FACTS;
+}
+// Fester Teil (gleich für alle Anfragen, damit er zwischengespeichert werden kann)
+function draftSystem(st, kb) {
+  return `Du schreibst E-Mail-Antworten für Klaus von Loft Studio Cologne. Deutsch, natürlich, freundlich und klar, wie ein Mensch, nicht wie ein Callcenter.
 Regeln:
-- Nutze nur Fakten aus dem Wissen unten. Erfinde keine Preise, Zeiten oder Zusagen. Fehlt eine Angabe, setze einen Platzhalter in eckigen Klammern, z. B. [Preis Tagesmiete] oder [Verfügbarkeit prüfen].
-${cal ? `- Kalenderstand siehe unten. Ist der Tag frei: schreibe, dass er Stand jetzt noch frei ist, aber erst mit Bestätigung fest reserviert ist. Ist er belegt: sag das freundlich und biete die freien Tage in der Nähe an. Nenne nie, wer gebucht hat oder was der Termin ist.` : `- Bestätige keine Verfügbarkeit als sicher, außer der Verlauf sagt es. Formuliere sonst z. B. "Ich schaue gleich in den Kalender" oder setze [Verfügbarkeit prüfen].`}
+- Nutze die FAQ unten. Nenne Preise, Zeiten und Konditionen genau so, wie sie dort stehen. Erfinde nichts. Fehlt eine Angabe, setze einen Platzhalter in eckigen Klammern, z. B. [Preis Tagesmiete].
+- Verfügbarkeit: Steht in der Anfrage ein Kalenderstand, nutze ihn. Ist der Tag frei: schreibe, dass er Stand jetzt noch frei ist und erst mit Bestätigung fest reserviert ist. Ist er belegt: sag das freundlich und biete die freien Tage in der Nähe an. Nenne nie, wer gebucht hat. Ohne Kalenderstand nichts zusagen, sondern [Verfügbarkeit prüfen] setzen.
 - Anrede: übernimm Du oder Sie vom Kunden. Ist das unklar, nimm "${st.tone === 'sie' ? 'Sie' : 'Du'}".
 - Keine Gedankenstriche, keine Emojis, kein Markdown, keine Betreffzeile.
 ${st.rules ? `- Hausregeln von Klaus, immer befolgen (gehen allgemeinen Regeln vor):\n${st.rules}\n` : ''}- Beginne mit einer passenden Begrüßung mit Namen, ende mit genau dieser Signatur:
 ${st.signature}
+- Gib nur den fertigen Mailtext aus, sonst nichts.
 
-Wissen:
 ${kb}`;
-  const prompt = `${todayLine()}
+}
+export async function draftPrompt(db, threadId, variantKey, { current = '', instruction = '' } = {}) {
+  const v = VARIANTS.find((x) => x.key === variantKey) || VARIANTS[0];
+  const [{ t, msgs }, st, samples, kb] = await Promise.all([loadThread(db, threadId), settingsRow(db), styleSamples(db, threadId), knowledgeFull(db)]);
+  const cal = await availabilityForPrompt(t.requested_date, t.studio).catch(() => '');
+  const lastIn = [...msgs].reverse().find((m) => m.direction === 'in');
+  if (!lastIn) throw Object.assign(new Error('Keine Kundenmail zum Beantworten'), { status: 409 });
+  const head = `${todayLine()}
 Kunde: ${t.contacts?.name || ''} <${t.contacts?.email || ''}>
 Betreff: ${t.subject}
 ${t.summary ? 'Zusammenfassung: ' + t.summary + '\n' : ''}${cal ? cal + '\n' : ''}
 Verlauf (neueste zuletzt):
 ${convoText(msgs)}
+`;
+  const prompt = instruction && current
+    ? `${head}
+Aktueller Entwurf von Klaus:
+${current}
 
-${samples.length ? 'So klingen Klaus’ bisherige Antworten (nur Ton übernehmen, keine Inhalte):\n' + samples.map((s, i) => `--- Beispiel ${i + 1} ---\n${s}`).join('\n') + '\n\n' : ''}Schreibe EINE Antwort im Stil: ${v.hint}
-Format deiner Antwort:
-Erste Zeile: LABEL: 2 bis 3 Wörter, die den Ansatz benennen
-Dann eine Leerzeile und der vollständige Mailtext. Sonst nichts.`;
-  return { system, prompt, position: VARIANTS.indexOf(v), based_on: lastIn.sent_at, key: v.key };
+Klaus möchte daran ändern: ${instruction}
+Überarbeite den Entwurf entsprechend. Behalte alles andere, auch die Signatur. Gib nur den fertigen Mailtext aus.`
+    : `${head}
+${samples.length ? 'So klingen Klaus’ bisherige Antworten (nur Ton übernehmen, keine Inhalte):\n' + samples.map((s, i) => `--- Beispiel ${i + 1} ---\n${s}`).join('\n') + '\n\n' : ''}${instruction ? 'Wunsch von Klaus für diese Antwort: ' + instruction + '\n' : ''}Schreibe die Antwort. ${v.hint}`;
+  return { system: draftSystem(st, kb), prompt, position: 0, based_on: lastIn.sent_at, key: v.key };
 }
 
 export function parseDraft(raw, key) {
@@ -232,7 +243,7 @@ export function parseDraft(raw, key) {
   else if (text.startsWith('{')) { try { const j = parseJson(text); label = j.label || ''; text = j.body || text; } catch (e) {} }
   let body = text.replace(/\s+—\s+|\s+–\s+/g, ', ').trim();
   if (!body) body = String(raw || '').replace(/^\s*(?:LABEL|Label|Ansatz)\s*:[^\n]*\n?/, '').trim(); // Rückfall: alles nehmen, was kam
-  label = (label || { direkt: 'Direkt', ausfuehrlich: 'Ausführlich', rueckfrage: 'Rückfrage' }[key] || 'Vorschlag').slice(0, 30);
+  label = (label || 'KI-Vorschlag').slice(0, 30);
   return { label, body };
 }
 export async function saveDraft(db, threadId, d, raw) {
@@ -254,7 +265,7 @@ export async function* claudeStream({ model = MODEL_WRITE, system, prompt, max_t
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', accept: 'text/event-stream' },
-    body: JSON.stringify({ model, max_tokens, system, stream: true, messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify({ model, max_tokens, system: sys(system), stream: true, messages: [{ role: 'user', content: prompt }] }),
   });
   if (!r.ok || !r.body) { const j = await r.json().catch(() => ({})); throw new Error('KI: ' + (j.error?.message || 'Fehler ' + r.status)); }
   info.types = new Set();

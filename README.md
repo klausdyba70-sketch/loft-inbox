@@ -24,8 +24,8 @@ App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank
 ## KI und Testmodus
 
 - `ai-worker` (alle 5 Minuten, nur live) stuft neue Mails ein (Anfrage, Sonstiges, Spam), schreibt Zusammenfassung, erkennt Studio, Art, Wunschtermin, Priorität und bereitet Vorschläge vor.
-- Beim Öffnen einer Anfrage stuft die App bei Bedarf sofort ein und holt 3 Vorschläge (je ein Aufruf, damit es unter 10 s bleibt).
-- Wissen kommt aus der Notion-FAQ (alle 6 Stunden neu). Ohne Notion setzt die KI Platzhalter für Preise.
+- Ein KI-Vorschlag pro Anfrage, Wort für Wort gestreamt. Darunter die Leiste „Was soll die KI ändern?“, die den Entwurf mit Verlauf, FAQ und Hausregeln überarbeitet.
+- Die ganze Notion-FAQ geht bei jedem Vorschlag mit (zwischengespeichert per Prompt-Caching, alle 6 Stunden neu geladen). Ohne Notion setzt die KI Platzhalter für Preise.
 - Testmodus: `/api/test/new` erzeugt eine KI-Testanfrage (is_test), Senden in Testanfragen geht nie über Microsoft, `/api/test/reply` lässt die Testkundin antworten, `/api/test/clear` löscht alles.
 
 ## Kalender
