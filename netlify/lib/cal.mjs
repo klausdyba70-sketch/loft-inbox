@@ -167,3 +167,17 @@ export async function availabilityForPrompt(dateIso, studio) {
   });
   return `Kalender (nur Lesestand, Stand jetzt):\n${lines.join('\n')}`;
 }
+
+// Überblick für die KI: belegte Tage der nächsten Wochen je Loft (für Zeiträume wie "Mitte Dezember, 3 Tage")
+export async function overviewForPrompt(days = 75) {
+  const cfg = calConfigured(); if (!cfg.P && !cfg.F) return '';
+  const today = isoDay(Date.now()), from = dayStart(today), to = dayStart(addDays(today, days));
+  const b = await busy(from, to);
+  const fmt = (d) => new Date(d + 'T12:00:00Z').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC' });
+  const lines = CALS.filter((c) => cfg[c.key] && !b.errors[c.key]).map((c) => {
+    const full = [], part = [];
+    for (let i = 0; i < days; i++) { const d = addDays(today, i), t = dayText(b.events, c.key, d); if (t === 'ganztägig belegt') full.push(fmt(d)); else if (t !== 'frei') part.push(fmt(d) + ' (' + t.replace('belegt ', '') + ')'); }
+    return `- ${c.name}: ganztägig belegt: ${full.join(', ') || 'keine Tage'}; teilweise belegt: ${part.join(', ') || 'keine Tage'}. Alle anderen Tage sind frei.`;
+  });
+  return lines.length ? `Kalender der nächsten ${days} Tage ab heute (${fmt(today)}):\n${lines.join('\n')}` : '';
+}

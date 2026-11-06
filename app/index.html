@@ -1326,17 +1326,19 @@ async function streamDraft(t, k, opts = {}) {
   const pos = VARS.indexOf(k);
   const entry = { position: pos, label: VLABEL[k], body: '', based_on: null };
   aiDrafts[t.id] = [...(aiDrafts[t.id] || []).filter((x) => x.position !== pos), entry].sort((a, b) => a.position - b.position);
-  const started = Date.now();
+  const started = Date.now(); streamDraft.lastAt = null; streamDraft.lastSeen = Date.now();
   for (;;) {
     await new Promise((res) => setTimeout(res, 700));
     if (Date.now() - started > 150000) throw new Error('Die KI hat nicht rechtzeitig geantwortet. Bitte nochmal versuchen.');
     const { data: row } = await sb.from('sync_state').select('value').eq('key', key).maybeSingle();
-    const v = row?.value; if (!v || v.reqId !== reqId) continue;
+    const v = row?.value; if (!v || v.reqId !== reqId) { if (Date.now() - started > 30000) throw new Error('Die KI ist nicht gestartet. Bitte nochmal versuchen.'); continue; }
+    if (v.at !== streamDraft.lastAt) { streamDraft.lastAt = v.at; streamDraft.lastSeen = Date.now(); }
+    else if (v.status === 'running' && Date.now() - streamDraft.lastSeen > 45000) throw new Error('Die KI hat mittendrin aufgehört (seit 45 Sekunden nichts Neues). Der Text bis hier steht im Feld. Bitte mit ↻ Neu nochmal versuchen.');
     if (v.status === 'error') throw new Error(v.error || 'KI-Fehler');
     const body = String(v.text || '').replace(/\s+—\s+|\s+–\s+/g, ', ');
     const prevBody = entry.body; entry.body = body; if (v.based_on) entry.based_on = v.based_on;
     if (current?.id === t.id && (curVar[t.id] ?? 0) === pos) { const ta = $('#draft'); if (ta && (ta.value === prevBody || !ta.value)) { ta.value = body; drafts[t.id] = body; } }
-    if (v.status === 'done') break;
+    if (v.status === 'done') { if (v.warn) aiErr[t.id] = v.warn; break; }
   }
   entry.body = entry.body.trim(); if (!entry.body) throw new Error('Die KI hat keinen Text geliefert. Bitte nochmal versuchen.');
   if ((curVar[t.id] ?? 0) === pos && (!drafts[t.id] || drafts[t.id].trim() === entry.body)) { drafts[t.id] = entry.body; saveDrafts(); }

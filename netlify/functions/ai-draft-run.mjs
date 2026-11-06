@@ -15,7 +15,7 @@ export default async (req) => {
     const kind = instruction ? 'Ändern' : 'Antwort';
     const info = {};
     let raw = '', last = 0, pending = Promise.resolve();
-    for await (const chunk of claudeStream({ system: d.system, prompt: d.prompt, info, kind })) {
+    for await (const chunk of claudeStream({ system: d.system, prompt: d.prompt, info, kind, max_tokens: 4000 })) {
       raw += chunk;
       if (Date.now() - last > 500) { last = Date.now(); await pending; pending = put({ status: 'running', text: raw }); }
     }
@@ -26,7 +26,9 @@ export default async (req) => {
     }
     if (info.stop === 'max_tokens') console.error('Antwort bei max_tokens abgeschnitten');
     const saved = await saveDraft(db, threadId, d, raw);
-    await put({ status: 'done', text: saved.body, label: saved.label, based_on: saved.based_on });
+    const types = [...(info.types || [])];
+    const warn = info.stop === 'max_tokens' ? 'Die Antwort wurde an der Längengrenze abgeschnitten' + (types.some((x) => /thinking/.test(x)) ? ' (das Modell hat vorher lange nachgedacht)' : '') + '. Modell ' + (info.model || '?') + ', Ausgabe ' + (info.usage?.output_tokens ?? '?') + ' Tokens.' : null;
+    await put({ status: 'done', text: saved.body, label: saved.label, based_on: saved.based_on, warn, stop: info.stop, model: info.model, types });
   } catch (e) {
     console.error(e);
     // Fehler nicht werfen, sonst wiederholt Netlify den Lauf

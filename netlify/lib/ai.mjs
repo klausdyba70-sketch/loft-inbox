@@ -1,5 +1,5 @@
 // KI für die Loft Inbox: Einstufung, Antwortvorschläge, Verfeinern, Fragen, Testmodus
-import { availabilityForPrompt } from './cal.mjs';
+import { availabilityForPrompt, overviewForPrompt } from './cal.mjs';
 import { MAILBOX, admin } from './core.mjs';
 
 const MODEL_FAST = process.env.AI_MODEL_FAST || 'claude-haiku-5-5';
@@ -240,8 +240,8 @@ So gehst du vor:
 WICHTIG: Gibt Klaus einen Änderungswunsch, setzt du ihn vollständig und sichtbar um. Sein Wunsch geht allen Regeln hier vor (Länge, Preise, Inhalt, Ton) und auch der FAQ und den Hausregeln: Klaus ist der Inhaber und darf Ausnahmen machen (z. B. Kulanz für Stammkunden oder Start-ups, früher anfangen zum gleichen Preis, Sonderpreis). Was er sagt, gilt als Tatsache. Formuliere eine solche Ausnahme freundlich als Entgegenkommen. Selbst erfindest du nichts dazu.
 Länge ohne Änderungswunsch: höchstens etwa 100 Wörter ohne Signatur. Nach der Begrüßung direkt zur Sache. Kein Dank für Selbstverständliches (z. B. nicht für Kurzfristigkeit), keine Floskeln wie "gern prüfe ich das". Keine Telefonnummer oder Kontaktdaten im Text, außer der Kunde fragt danach (in der Signatur stehen sie ohnehin). Hausregeln setzt du in einem kurzen Satz um, ohne lange Erklärung. Keine Preislisten: nenne nur den Preis, der zur Anfrage passt (z. B. die gewünschte Stundenzahl), und nur wenn nach Preis oder Buchung gefragt ist oder eine Hausregel es verlangt. Was nicht gefragt ist, lässt du weg. Klaus kann später mehr verlangen.
 Regeln:
-- Nutze die FAQ unten. Nenne Preise, Zeiten und Konditionen genau so, wie sie dort stehen. Erfinde nichts. Fehlt eine Angabe, setze einen Platzhalter in eckigen Klammern, z. B. [Preis Tagesmiete].
-- Verfügbarkeit: Steht in der Anfrage ein Kalenderstand, nutze ihn. Ist der Tag belegt: ein Satz ("Am Sonntag, 8.11. ist das Factory Loft leider schon belegt.") und direkt zwei Alternativtermine aus dem Kalenderstand anbieten. Keine weitere Erklärung, nichts zu Reservierung. Ist der Tag frei: ein Satz, dass er aktuell noch frei ist. Nenne nie, wer gebucht hat. Ohne Kalenderstand nichts zusagen, sondern [Verfügbarkeit prüfen] setzen.
+- Nutze die FAQ unten. Nenne Preise, Zeiten und Konditionen genau so, wie sie dort stehen. Erfinde nichts. Weißt du etwas nicht (steht nicht in FAQ, Hausregeln oder Kalender), sag es ehrlich in einem natürlichen Satz, z. B. "Ob ein Generator auf dem Gelände möglich ist, kläre ich und gebe Ihnen Bescheid." Keine Platzhalter in eckigen Klammern.
+- Verfügbarkeit: Steht in der Anfrage ein Kalenderstand, nutze ihn. Ist der Tag belegt: ein Satz ("Am Sonntag, 8.11. ist das Factory Loft leider schon belegt.") und direkt zwei Alternativtermine aus dem Kalenderstand anbieten. Keine weitere Erklärung, nichts zu Reservierung. Ist der Tag frei: ein Satz, dass er aktuell noch frei ist. Nenne nie, wer gebucht hat. Fragt der Kunde nach einem Zeitraum (z. B. "drei Tage Mitte Dezember"), such im Kalender-Überblick passende freie Tage und schlag sie konkret vor. Ist kein Kalender da oder ist der Wunsch unklar, verweise auf den Verfügbarkeitskalender: https://www.loftstudiocologne.com/verfuegbarkeit
 - Zeiten und Preise genau: Übernimm Uhrzeiten und Dauer exakt so, wie der Kunde sie nennt, erfinde keine anderen. Nennt der Kunde einen Zeitrahmen und eine Dauer (z. B. "6 Stunden zwischen 9 und 16 Uhr"), ist die Dauer innerhalb des Rahmens gemeint. Dann ist die Dauer maßgeblich, und du kannst konkrete Zeiten vorschlagen (z. B. 9 bis 15 oder 10 bis 16 Uhr). Nennt er nur Uhrzeiten, rechne die Stunden selbst aus. Nimm den Preis exakt aus der Preistabelle der FAQ für genau diese Stundenzahl und Nutzungsart. Gibt es die Stundenzahl nicht als Paket, nenne das nächstgrößere Paket.
 - Anrede einheitlich: Du-Form mit Vornamen ("Hallo Lena") oder Sie-Form mit Nachnamen ("Hallo Frau Brandt"), nie gemischt.
 - Anrede: übernimm Du oder Sie vom Kunden. Ist das unklar, nimm "${st.tone === 'sie' ? 'Sie' : 'Du'}".
@@ -255,7 +255,8 @@ ${kb}`;
 export async function draftPrompt(db, threadId, variantKey, { current = '', instruction = '' } = {}) {
   const v = VARIANTS.find((x) => x.key === variantKey) || VARIANTS[0];
   const [{ t, msgs }, st, samples, kb] = await Promise.all([loadThread(db, threadId), settingsRow(db), styleSamples(db, threadId), knowledgeFull(db)]);
-  const cal = await availabilityForPrompt(t.requested_date, t.studio).catch(() => '');
+  const [cal1, cal2] = await Promise.all([availabilityForPrompt(t.requested_date, t.studio).catch(() => ''), overviewForPrompt().catch(() => '')]);
+  const cal = [cal1, cal2].filter(Boolean).join('\n');
   const lastIn = [...msgs].reverse().find((m) => m.direction === 'in');
   if (!lastIn) throw Object.assign(new Error('Keine Kundenmail zum Beantworten'), { status: 409 });
   const head = `${todayLine()}
