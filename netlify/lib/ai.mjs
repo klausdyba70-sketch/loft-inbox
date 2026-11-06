@@ -28,10 +28,36 @@ export async function claude({ model = MODEL_FAST, system, prompt, max_tokens = 
   if (!r.ok) throw Object.assign(new Error('KI: ' + (j.error?.message || 'Fehler ' + r.status)), { status: r.status === 401 ? 409 : 502 });
   return (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('').trim();
 }
+// Tolerant: entfernt Code-Zäune, repariert rohe Zeilenumbrüche in Texten
+function escapeInStrings(src) {
+  let out = '', inStr = false, esc = false;
+  for (const ch of src) {
+    if (inStr) {
+      if (esc) { out += ch; esc = false; continue; }
+      if (ch === '\\') { out += ch; esc = true; continue; }
+      if (ch === '"') { inStr = false; out += ch; continue; }
+      if (ch === '\n') { out += '\\n'; continue; }
+      if (ch === '\r') continue;
+      if (ch === '\t') { out += '\\t'; continue; }
+      out += ch;
+    } else { if (ch === '"') inStr = true; out += ch; }
+  }
+  return out;
+}
 export function parseJson(t) {
-  const a = t.indexOf('{'), b = t.lastIndexOf('}');
-  if (a < 0 || b < a) throw new Error('KI-Antwort ohne JSON');
-  return JSON.parse(t.slice(a, b + 1));
+  const clean = String(t || '').replace(/```(?:json)?/gi, '');
+  const a = clean.indexOf('{'), b = clean.lastIndexOf('}');
+  if (a < 0 || b < a) throw Object.assign(new Error('KI-Antwort ohne JSON'), { raw: clean });
+  const body = clean.slice(a, b + 1);
+  try { return JSON.parse(body); } catch (e) { return JSON.parse(escapeInStrings(body)); }
+}
+async function claudeJson(opts, tries = 2) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    const txt = await claude({ ...opts, prompt: i ? opts.prompt + '\n\nWICHTIG: Antworte ausschließlich mit einem gültigen JSON-Objekt, ohne weiteren Text.' : opts.prompt });
+    try { return parseJson(txt); } catch (e) { last = e; }
+  }
+  throw new Error('Die KI hat in einem unerwarteten Format geantwortet. Bitte nochmal versuchen.');
 }
 const todayLine = () => { const d = new Date(); return `Heute ist ${WD[d.getDay()]}, der ${d.toISOString().slice(0, 10)}.`; };
 
@@ -130,7 +156,7 @@ Verlauf (neueste zuletzt):
 ${convoText(msgs)}
 
 JSON: {"kind":"anfrage|sonstiges|spam","spam_score":0,"studio":"P|F|X","category":null,"requested_date":null,"priority":"normal","summary":""}`;
-  const r = parseJson(await claude({ model: MODEL_FAST, system, prompt, max_tokens: 400 }));
+  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 400 }));
   const kind = ['anfrage', 'sonstiges', 'spam'].includes(r.kind) ? r.kind : 'anfrage';
   const spam = Math.max(0, Math.min(100, Math.round(+r.spam_score || 0)));
   const date = /^\d{4}-\d{2}-\d{2}$/.test(r.requested_date || '') ? r.requested_date : null;
@@ -188,10 +214,17 @@ Verlauf (neueste zuletzt):
 ${convoText(msgs)}
 
 ${samples.length ? 'So klingen Klaus’ bisherige Antworten (nur Ton übernehmen, keine Inhalte):\n' + samples.map((s, i) => `--- Beispiel ${i + 1} ---\n${s}`).join('\n') + '\n\n' : ''}Schreibe EINE Antwort im Stil: ${v.hint}
-Antworte nur mit JSON: {"label":"2 bis 3 Wörter, die den Ansatz benennen","body":"vollständiger Mailtext"}`;
-  const r = parseJson(await claude({ model: MODEL_WRITE, system, prompt, max_tokens: 700, timeoutMs: 9000 }));
-  const body = String(r.body || '').replace(/\s+—\s+|\s+–\s+/g, ', ').trim();
-  const label = String(r.label || v.key).slice(0, 30);
+Format deiner Antwort:
+Erste Zeile: LABEL: 2 bis 3 Wörter, die den Ansatz benennen
+Dann eine Leerzeile und der vollständige Mailtext. Sonst nichts.`;
+  const raw = await claude({ model: MODEL_WRITE, system, prompt, max_tokens: 700, timeoutMs: 9000 });
+  let label = '', text = raw.replace(/```[a-z]*\n?/gi, '').trim();
+  const m = text.match(/^\s*(?:LABEL|Label|Ansatz)\s*:\s*(.+)\n+/);
+  if (m) { label = m[1].replace(/[*"]/g, '').trim(); text = text.slice(m[0].length); }
+  else if (text.startsWith('{')) { try { const j = parseJson(text); label = j.label || ''; text = j.body || text; } catch (e) {} }
+  const body = text.replace(/\s+—\s+|\s+–\s+/g, ', ').trim();
+  if (!body) throw new Error('Die KI hat keinen Text geliefert. Bitte nochmal versuchen.');
+  label = (label || { direkt: 'Direkt', ausfuehrlich: 'Ausführlich', rueckfrage: 'Rückfrage' }[v.key]).slice(0, 30);
   const position = VARIANTS.indexOf(v);
   await db.from('drafts').delete().eq('thread_id', threadId).eq('position', position);
   await db.from('drafts').insert({ thread_id: threadId, label, body, position, based_on: lastIn.sent_at });
@@ -223,7 +256,7 @@ export async function askInbox(db, question) {
   const ctx = list.map((x) => `[${x.id}] ${x.last_message_at.slice(0, 10)} · ${x.contacts?.name || x.contacts?.email} · ${x.subject} · ${x.status}${x.summary ? ' · ' + x.summary : ''}`).join('\n');
   const system = 'Du beantwortest Fragen von Klaus zu seinen Studio-Anfragen. Antworte kurz auf Deutsch, nur aus den Einträgen unten. Wenn nichts passt, sag das ehrlich. Keine Gedankenstriche. Antworte nur mit JSON.';
   const prompt = `${todayLine()}\nFrage: ${question}\n\nEinträge:\n${ctx}\n\nJSON: {"answer":"kurze Antwort","ids":["IDs der passenden Einträge, wichtigste zuerst"]}`;
-  const r = parseJson(await claude({ model: MODEL_FAST, system, prompt, max_tokens: 500 }));
+  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 500 }));
   const ids = (r.ids || []).filter((id) => found.has(id) || list.some((x) => x.id === id)).slice(0, 12);
   return { answer: String(r.answer || ''), ids };
 }
@@ -243,7 +276,7 @@ export async function generateTestInquiry() {
   const scenario = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)];
   const system = 'Du erfindest realistische, deutschsprachige Kunden-E-Mails an Loft Studio Cologne für Testzwecke. Die Person ist frei erfunden. Schreibe natürlich, mit Begrüßung und kurzer Signatur, gern mit kleinen Eigenheiten. Antworte nur mit JSON.';
   const prompt = `${todayLine()}\nSzenario: ${scenario}\nJSON: {"name":"Vor- und Nachname","email":"name@example.com (Domain muss example.com sein)","subject":"Betreff","body":"Mailtext"}`;
-  const r = parseJson(await claude({ model: MODEL_FAST, system, prompt, max_tokens: 700 }));
+  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 700 }));
   const local = String(r.email || 'test').split('@')[0].toLowerCase().replace(/[^a-z0-9.-]/g, '') || 'test';
   return { name: String(r.name || 'Test Kundin').slice(0, 80), email: `${local}.${Math.random().toString(36).slice(2, 6)}@example.com`, subject: String(r.subject || 'Anfrage').slice(0, 200), body: String(r.body || '') };
 }
@@ -253,7 +286,7 @@ export async function generateTestReply(db, threadId) {
   const mood = moods[Math.floor(Math.random() * moods.length)];
   const system = `Du spielst die erfundene Kundin/den erfundenen Kunden ${t.contacts?.name} in einem Mailverlauf mit Loft Studio Cologne. Antworte realistisch und kurz auf die letzte Nachricht des Studios, auf Deutsch. Antworte nur mit JSON.`;
   const prompt = `Verlauf:\n${convoText(msgs, 8)}\n\nDeine Reaktion: Du ${mood}.\nJSON: {"body":"Mailtext mit Begrüßung und Gruß"}`;
-  const r = parseJson(await claude({ model: MODEL_FAST, system, prompt, max_tokens: 500 }));
+  const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 500 }));
   return String(r.body || '');
 }
 export { MAILBOX };
