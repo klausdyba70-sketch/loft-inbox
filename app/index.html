@@ -769,6 +769,7 @@ mark{background:#f1dfa6}
 @keyframes blink{0%,100%{opacity:.2}50%{opacity:.9}}
 .mail.typing{display:flex;align-items:center;gap:8px;padding:12px 14px;color:var(--mute);font-size:13.5px}
 @media (prefers-reduced-motion:reduce){.dots i{animation:none;opacity:.6}}
+.errline{display:block;color:var(--red)!important;margin-top:4px;font-weight:500}
 </style>
 </head>
 <body data-view="auth">
@@ -1310,7 +1311,7 @@ async function renderSettings() {
   const ac = $('#aicard');
   if (ac) { const ai = s.ai || {}; ac.innerHTML = `<h3>KI</h3>
    <div class="srow"><div class="stx"><b>Claude</b><small>${ai.anthropic ? 'Bereit. Sortiert neue Mails, schreibt Zusammenfassungen und Vorschläge.' + (ai.pending ? ` Noch ${ai.pending} Mails einzustufen, läuft im Hintergrund.` : '') : 'ANTHROPIC_API_KEY fehlt in Netlify'}</small></div><span class="cst ${ai.anthropic ? 'ok' : 'todo'}">${ai.anthropic ? 'Aktiv' : 'Einrichten'}</span></div>
-   <div class="srow"><div class="stx"><b>Wissen aus Notion</b><small>${!ai.notion ? 'NOTION_TOKEN fehlt in Netlify. Die KI nutzt bis dahin nur Grundinfos und setzt Platzhalter für Preise.' : ai.knowledgeAt ? 'Zuletzt aktualisiert ' + fmtFull(ai.knowledgeAt) + ', automatisch alle 6 Stunden' : 'Noch nicht geladen'}</small></div>${ai.notion ? '<button class="mini" id="kbreload">Jetzt laden</button>' : '<span class="cst todo">Einrichten</span>'}</div>`; }
+   <div class="srow"><div class="stx"><b>Wissen aus Notion</b><small>${!ai.notion ? 'NOTION_TOKEN fehlt in Netlify. Die KI nutzt bis dahin nur Grundinfos und setzt Platzhalter für Preise.' : ai.knowledgeAt ? 'Geladen ' + fmtFull(ai.knowledgeAt) + ', automatisch alle 6 Stunden neu' : 'Noch nicht geladen'}</small>${ai.notionError ? `<small class="errline">${esc(ai.notionError)}</small>` : ''}</div>${ai.notion ? `<span class="cst ${ai.knowledgeAt && !ai.notionError ? 'ok' : 'todo'}">${ai.knowledgeAt && !ai.notionError ? 'Aktiv' : 'Prüfen'}</span>` : ''}${ai.notion ? '<button class="mini" id="kbreload">Jetzt laden</button>' : '<span class="cst todo">Einrichten</span>'}</div>`; }
   const rc = $('#replycard');
   if (rc) { const { data: st } = await sb.from('settings').select('tone,signature').eq('id', true).maybeSingle(); const tone = st?.tone || 'du'; rc.innerHTML = `<h3>Antworten</h3>
    <div class="srow"><div class="stx"><b>Anrede</b><small>Wenn unklar ist, wie der Kunde schreibt</small></div><div class="seg"><button data-tone="du" aria-pressed="${tone === 'du'}">Du</button><button data-tone="sie" aria-pressed="${tone === 'sie'}">Sie</button></div></div>
@@ -1342,7 +1343,7 @@ document.addEventListener('click', async (e) => {
   if (b.id === 'texit' || b.id === 'testoff') { testMode = false; try { localStorage.setItem('li-test', '0'); } catch (err) {} current = null; render(); return; }
   if (b.id === 'teston') { testMode = true; try { localStorage.setItem('li-test', '1'); } catch (err) {} current = null; view = 'inbox'; history.replaceState(null, '', '#'); render(); return; }
   if (b.id === 'tclear') { try { const r = await api('/api/test/clear', {}); toast(`${r.deleted} Testanfragen gelöscht`); current = null; await loadThreads(); render(); } catch (err) { toast(err.message); } return; }
-  if (b.id === 'kbreload') { b.disabled = true; b.textContent = 'Lädt …'; try { const r = await api('/api/ai/knowledge', {}); toast(r.ok ? 'Wissen aus Notion aktualisiert' : r.reason); } catch (err) { toast(err.message); } renderSettings(); return; }
+  if (b.id === 'kbreload') { b.disabled = true; b.textContent = 'Lädt …'; try { const r = await api('/api/ai/knowledge', {}); toast(r.ok ? `Wissen aus Notion geladen (${Math.round((r.chars || 0) / 1000)} Tsd. Zeichen)` : r.reason); } catch (err) { toast(err.message); } renderSettings(); return; }
   if (b.id === 'sigsave') { const v = $('#sigedit').value; const { error } = await sb.from('settings').update({ signature: v }).eq('id', true); toast(error ? error.message : 'Signatur gespeichert'); return; }
   if (b.dataset.tone) { await sb.from('settings').update({ tone: b.dataset.tone }).eq('id', true); renderSettings(); return; }
   if (b.dataset.tf) { tfil = tfil === b.dataset.tf ? 'alle' : b.dataset.tf; page = 0; renderList(); return; }

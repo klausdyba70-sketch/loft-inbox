@@ -35,19 +35,25 @@ export function parseJson(t) {
 const todayLine = () => { const d = new Date(); return `Heute ist ${WD[d.getDay()]}, der ${d.toISOString().slice(0, 10)}.`; };
 
 // ---------- Wissen aus Notion ----------
-async function notionBlocks(id, token, depth = 0, out = []) {
+async function notionBlocks(id, token, deadline, depth = 0, out = []) {
   let cursor = null;
   do {
+    if (Date.now() > deadline) { out.truncated = true; return out; }
     const u = `https://api.notion.com/v1/blocks/${id}/children?page_size=100${cursor ? '&start_cursor=' + cursor : ''}`;
     const r = await fetch(u, { headers: { Authorization: 'Bearer ' + token, 'Notion-Version': '2022-06-28' } });
-    const j = await r.json();
-    if (!r.ok) throw new Error('Notion: ' + (j.message || r.status));
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      if (r.status === 404 || j.code === 'object_not_found') throw new Error('Notion findet die FAQ-Seite nicht. Bitte die Seite in Notion über ••• → Verbindungen mit "Loft Inbox" teilen.');
+      if (r.status === 401 || j.code === 'unauthorized') throw new Error('NOTION_TOKEN ist ungültig. Bitte den Schlüssel der Verbindung "Loft Inbox" neu in Netlify eintragen.');
+      throw new Error('Notion: ' + (j.message || 'Fehler ' + r.status));
+    }
     for (const b of j.results || []) {
       const d = b[b.type] || {};
       const txt = (d.rich_text || []).map((x) => x.plain_text).join('');
       if (b.type === 'table_row') out.push((d.cells || []).map((c) => c.map((x) => x.plain_text).join('')).join(' | '));
+      else if (b.type === 'child_page') out.push('\n# ' + (d.title || ''));
       else if (txt) out.push((b.type.startsWith('heading') ? '\n## ' : b.type.includes('list_item') || b.type === 'to_do' ? '- ' : '') + txt);
-      if (b.has_children && depth < 4 && b.type !== 'child_page' && b.type !== 'child_database') await notionBlocks(b.id, token, depth + 1, out);
+      if (b.has_children && depth < 4 && b.type !== 'child_database') await notionBlocks(b.id, token, deadline, depth + 1, out);
     }
     cursor = j.has_more ? j.next_cursor : null;
   } while (cursor);
@@ -55,14 +61,21 @@ async function notionBlocks(id, token, depth = 0, out = []) {
 }
 export async function refreshKnowledge(db, force = false) {
   const token = process.env.NOTION_TOKEN;
-  if (!token) return { ok: false, reason: 'NOTION_TOKEN fehlt' };
+  if (!token) return { ok: false, reason: 'NOTION_TOKEN fehlt in Netlify' };
   const { data: k } = await db.from('knowledge').select('synced_at').eq('id', NOTION_PAGE).maybeSingle();
   if (!force && k && Date.now() - new Date(k.synced_at).getTime() < 6 * 36e5) return { ok: true, synced_at: k.synced_at };
-  const lines = await notionBlocks(NOTION_PAGE, token);
-  const content = lines.join('\n').replace(/\n{3,}/g, '\n\n').slice(0, 60000);
-  const synced_at = new Date().toISOString();
-  await db.from('knowledge').upsert({ id: NOTION_PAGE, title: 'Loft Studio Cologne FAQ (Notion)', content, synced_at });
-  return { ok: true, synced_at, chars: content.length };
+  try {
+    const lines = await notionBlocks(NOTION_PAGE, token, Date.now() + 7000);
+    const content = lines.join('\n').replace(/\n{3,}/g, '\n\n').slice(0, 60000);
+    if (!content.trim()) throw new Error('Die Notion-Seite ist leer oder nicht lesbar.');
+    const synced_at = new Date().toISOString();
+    await db.from('knowledge').upsert({ id: NOTION_PAGE, title: 'Loft Studio Cologne FAQ (Notion)', content, synced_at });
+    await db.from('sync_state').upsert({ key: 'notion:last_error', value: {}, updated_at: synced_at });
+    return { ok: true, synced_at, chars: content.length, truncated: !!lines.truncated };
+  } catch (e) {
+    await db.from('sync_state').upsert({ key: 'notion:last_error', value: { at: new Date().toISOString(), message: e.message }, updated_at: new Date().toISOString() });
+    return { ok: false, reason: e.message };
+  }
 }
 async function knowledge(db) {
   const { data } = await db.from('knowledge').select('content').limit(5);
