@@ -902,6 +902,15 @@ button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
 .cbtns{display:flex;justify-content:flex-end;gap:8px}
 .cbtns .ghost{height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600}
 .cbtns .send{height:40px;padding:0 18px;border-radius:12px}
+
+/* Verlauf: neueste Nachricht kräftig, ältere eingerückt und heller; eigene Antworten grün markiert */
+.msgs{display:flex;flex-direction:column;gap:10px}
+.mail.older{margin-left:28px;background:color-mix(in srgb,var(--surface) 55%,var(--bg));box-shadow:none}
+.mail.older .mmeta,.mail.older .mbody{opacity:.78}
+.mail.out{border-left:4px solid var(--primary)}
+.mail.out .mmeta .n b{color:var(--primary)}
+.mail.in.older{border-left:4px solid var(--line)}
+@media (max-width:760px){.mail.older{margin-left:14px}}
 </style>
 </head>
 <body data-view="auth">
@@ -930,7 +939,7 @@ const I = {
 };
 const COLORS = { rot: 'var(--red)', orange: 'var(--orange)', gruen: 'var(--green)', blau: 'var(--blue)', lila: 'var(--violet)' };
 const COLOR_NAMES = { rot: 'Dringend', orange: 'Angebot offen', gruen: 'Zugesagt', blau: 'Info', lila: 'Stammkunde' };
-const MARKS = ['orange', 'lila']; // wählbare Markierungen. Dringend ist die Priorität, Zugesagt heißt abgeschlossen
+const MARKS = ['orange']; // wählbare Markierungen. Dringend ist die Priorität, Zugesagt heißt abgeschlossen
 const STUDIO = { P: 'Penthouse Loft', F: 'Factory Loft', X: 'Studio offen' };
 const CATS = ['Verfügbarkeit', 'Preis', 'Besichtigung', 'Buchung', 'Workshop / Seminar', 'Event', 'Ausstattung', 'Sonstiges'];
 const ST_LABEL = { offen: 'Offen', beantwortet: 'Wartet auf Kunde', gebucht: 'Gebucht', abgeschlossen: 'Abgeschlossen', spam: 'Spam' };
@@ -1167,14 +1176,15 @@ function detailHTML() {
   const firstIn = msgs.findIndex((m) => m.direction === 'in'), last = msgs.length - 1;
   const mails = msgs.map((m, i) => {
     const key = t.id + i, open = expanded[key] ?? (i === last);
-    const who = m.direction === 'in' ? t.name : 'Klaus · Loft Studio Cologne';
+    const who = m.direction === 'in' ? t.name : 'Deine Antwort';
     const head = `<span class="mmeta"><span class="n"><b>${esc(who)}</b><time>${fmtFull(m.sent_at)}</time></span><span class="to">an ${esc(m.direction === 'in' ? MAILBOX : t.email)}</span>${open ? '' : `<span class="pv">${esc(m.body_text.replace(/\s+/g, ' ').slice(0, 260))}</span>`}${i === firstIn ? '<span class="tagfirst">Erstanfrage</span>' : ''}</span>`;
     const av = avatar({ name: m.direction === 'in' ? t.name : 'Klaus Dyba' }, false);
-    if (!open) return `<div class="mail"><button class="mhead" data-exp="${key}">${av}${head}</button></div>`;
+    const cls = `${m.direction === 'out' ? 'out' : 'in'} ${i !== last ? 'older' : ''}`;
+    if (!open) return `<div class="mail ${cls}"><button class="mhead" data-exp="${key}">${av}${head}</button></div>`;
     const mode = viewMode[m.id] || (m.body_html || m.graph_id ? 'html' : 'text');
     const tools = m.body_html || m.graph_id ? `<div class="mtools"><div class="seg"><button data-vm="${m.id}:html" aria-pressed="${mode === 'html'}">Original</button><button data-vm="${m.id}:text" aria-pressed="${mode === 'text'}">Text</button></div>${mode === 'html' ? `<button class="mini" data-imgs="${m.id}">${showImgs[m.id] ? 'Bilder aus' : 'Bilder laden'}</button><button class="mini" data-quote="${m.id}">${showQuote[m.id] ? 'Verlauf aus' : 'Verlauf'}</button>` : ''}</div>` : '';
     const body = mode === 'html' ? (m.body_html ? `<iframe class="mframe" data-mid="${m.id}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="E-Mail"></iframe>` : `<div class="mbody mload">Original wird geladen …</div>`) : `<div class="mbody">${esc(m.body_text)}</div>`;
-    return `<div class="mail ${i === firstIn ? 'first' : ''}"><button class="mhead" data-col="${key}" title="Zuklappen">${av}${head}<span class="mcol" aria-hidden="true">▴</span></button>${tools}${body}</div>`;
+    return `<div class="mail ${cls} ${i === firstIn ? 'first' : ''}"><button class="mhead" data-col="${key}" title="Zuklappen">${av}${head}<span class="mcol" aria-hidden="true">▴</span></button>${tools}${body}</div>`;
   });
   if (msgOrder === 'new') mails.reverse();
   return `<div class="dmain"><header class="dh"><button class="icon back" id="back" aria-label="Zurück">${I.back}</button>${avatar(t)}
