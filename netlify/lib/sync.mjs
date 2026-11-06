@@ -94,7 +94,8 @@ async function storeMessage(db, raw) {
   const patch = {};
   if (new Date(at) > new Date(thread.last_message_at)) patch.last_message_at = at;
   if (m.out) {
-    if (thread.status === 'offen') patch.status = 'beantwortet';
+    // Nur wenn unsere Antwort die neueste Nachricht ist. Kam danach schon eine Kundenmail, bleibt die Anfrage offen.
+    if (thread.status === 'offen' && new Date(at) >= new Date(thread.last_message_at)) patch.status = 'beantwortet';
     if (thread.first_response_minutes == null) {
       const { data: firstIn } = await db.from('messages').select('sent_at').eq('thread_id', thread.id).eq('direction', 'in').order('sent_at').limit(1).maybeSingle();
       if (firstIn) patch.first_response_minutes = Math.max(0, Math.round((new Date(at) - new Date(firstIn.sent_at)) / 60000));
