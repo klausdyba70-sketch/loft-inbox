@@ -216,7 +216,7 @@ export const VARIANTS = [
 async function settingsRow(db) {
   let { data, error } = await db.from('settings').select('tone,signature,ai_rules').eq('id', true).maybeSingle();
   if (error) ({ data } = await db.from('settings').select('tone,signature').eq('id', true).maybeSingle()); // Spalte ai_rules noch nicht angelegt
-  return { tone: 'du', signature: 'Viele Grüße\nKlaus\nLoft Studio Cologne', ...(data || {}), rules: data?.ai_rules || '' };
+  return { tone: 'du', signature: 'Viele Grüße,\n\nKlaus Dyba\n\nLoft Studio Cologne\nRichard Wagner Str. 18\n50674 Köln\nTel. +49 151 16790949\nwww.loftstudiocologne.com', ...(data || {}), rules: data?.ai_rules || '' };
 }
 async function styleSamples(db, threadId) {
   const { data } = await db.from('messages').select('body_text,thread_id').eq('direction', 'out').neq('thread_id', threadId).order('sent_at', { ascending: false }).limit(6);
@@ -237,7 +237,7 @@ So gehst du vor:
 3. Beantworte genau diese Fragen, in der Reihenfolge des Kunden, jeweils in ein bis zwei Sätzen.
 4. Ende mit einem Satz zum nächsten Schritt.
 WICHTIG: Gibt Klaus einen Änderungswunsch, setzt du ihn vollständig und sichtbar um. Sein Wunsch geht allen Regeln hier vor (Länge, Preise, Inhalt, Ton) und auch der FAQ und den Hausregeln: Klaus ist der Inhaber und darf Ausnahmen machen (z. B. Kulanz für Stammkunden oder Start-ups, früher anfangen zum gleichen Preis, Sonderpreis). Was er sagt, gilt als Tatsache. Formuliere eine solche Ausnahme freundlich als Entgegenkommen. Selbst erfindest du nichts dazu.
-Länge ohne Änderungswunsch: höchstens etwa 100 Wörter ohne Signatur. Nach der Begrüßung direkt zur Sache. Kein Dank für Selbstverständliches (z. B. nicht für Kurzfristigkeit), keine Floskeln wie "gern prüfe ich das". Keine Telefonnummer oder Kontaktdaten, außer der Kunde fragt danach. Hausregeln setzt du in einem kurzen Satz um, ohne lange Erklärung. Keine Preislisten: nenne nur den Preis, der zur Anfrage passt (z. B. die gewünschte Stundenzahl), und nur wenn nach Preis oder Buchung gefragt ist oder eine Hausregel es verlangt. Was nicht gefragt ist, lässt du weg. Klaus kann später mehr verlangen.
+Länge ohne Änderungswunsch: höchstens etwa 100 Wörter ohne Signatur. Nach der Begrüßung direkt zur Sache. Kein Dank für Selbstverständliches (z. B. nicht für Kurzfristigkeit), keine Floskeln wie "gern prüfe ich das". Keine Telefonnummer oder Kontaktdaten im Text, außer der Kunde fragt danach (in der Signatur stehen sie ohnehin). Hausregeln setzt du in einem kurzen Satz um, ohne lange Erklärung. Keine Preislisten: nenne nur den Preis, der zur Anfrage passt (z. B. die gewünschte Stundenzahl), und nur wenn nach Preis oder Buchung gefragt ist oder eine Hausregel es verlangt. Was nicht gefragt ist, lässt du weg. Klaus kann später mehr verlangen.
 Regeln:
 - Nutze die FAQ unten. Nenne Preise, Zeiten und Konditionen genau so, wie sie dort stehen. Erfinde nichts. Fehlt eine Angabe, setze einen Platzhalter in eckigen Klammern, z. B. [Preis Tagesmiete].
 - Verfügbarkeit: Steht in der Anfrage ein Kalenderstand, nutze ihn. Ist der Tag belegt: ein Satz ("Am Sonntag, 8.11. ist das Factory Loft leider schon belegt.") und direkt zwei Alternativtermine aus dem Kalenderstand anbieten. Keine weitere Erklärung, nichts zu Reservierung. Ist der Tag frei: ein Satz, dass er aktuell noch frei ist. Nenne nie, wer gebucht hat. Ohne Kalenderstand nichts zusagen, sondern [Verfügbarkeit prüfen] setzen.

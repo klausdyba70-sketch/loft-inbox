@@ -931,6 +931,10 @@ button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
 .row:not(:has(.mtile)){grid-template-columns:minmax(0,1fr)}
 .row.selm:not(:has(.mtile)){grid-template-columns:24px minmax(0,1fr)}
 span.mtile{cursor:default}
+
+/* Antwortfeld: erst klein, beim Anklicken groß */
+.composer.top:not(.big) #draft{height:64px!important;min-height:64px}
+.composer.top:not(.big) .grip{display:none}
 </style>
 </head>
 <body data-view="auth">
@@ -1217,10 +1221,10 @@ function detailHTML() {
    <h2>${esc(t.subject)}</h2>
    <div class="pills">${stPill(t)}${t.prio === 'hoch' && t.status === 'offen' ? '<span class="st st-hot">Dringend</span>' : ''}${t.studio !== 'X' ? `<span class="pill">${STUDIO[t.studio]}</span>` : ''}${t.cat ? `<span class="pill">${esc(t.cat)}</span>` : ''}</div>
    ${t.summary ? `<div class="sum"><div class="ah">${I.spark}Zusammenfassung${t.reqDate ? `<span class="sumdate">Wunschtermin ${fmtDay(t.reqDate)}</span>` : ''}</div>${esc(t.summary)}<div id="avrow">${availRow(t)}</div></div>` : !t.aiAt && !aiOff ? `<div class="sum busy"><div class="ah">${I.spark}KI liest die Anfrage …</div></div>` : ''}
-   <section class="composer top" aria-label="Antwort"><div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
+   <section class="composer top ${composerBig[t.id] ? 'big' : ''}" aria-label="Antwort"><div class="cinner">${closed ? `<div class="closed"><span>${t.status === 'spam' ? 'Als Spam aussortiert.' : 'Abgeschlossen.'}</span><button class="ghost" id="reopen">${t.status === 'spam' ? 'Kein Spam' : 'Wieder öffnen'}</button></div>` : `
    <div class="from">Von <b>${MAILBOX}</b> an ${esc(t.email)}</div>
    <div id="dbar">${draftBarHTML(t)}</div>
-   <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${Math.min(composerH, Math.round(innerHeight * 0.8))}px">${esc(drafts[t.id] || '')}</textarea>
+   <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${Math.min(Math.max(composerH, 260), Math.round(innerHeight * 0.8))}px">${esc(drafts[t.id] || '')}</textarea>
    ${aiOff ? '' : `<form class="aiedit" id="aiedit" autocomplete="off"><span class="ailbl">${I.spark}</span><input id="aiins" enterkeyhint="send" placeholder="Was soll die KI ändern? z. B. Overtime-Preis nennen, kürzer, Sie-Form" aria-label="Änderungswunsch an die KI"><button type="submit" class="mini">Ändern</button></form>`}
    <div class="cbar"><small class="saved" id="saved">${drafts[t.id] ? 'Entwurf gespeichert' : ''}</small><span class="sp" style="flex:1"></span>
     <button class="icon" id="discard" title="Entwurf verwerfen" aria-label="Entwurf verwerfen" ${drafts[t.id] ? '' : 'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg></button>
@@ -1372,6 +1376,8 @@ const SEND_AS = [
   ['offen', 'Offen lassen', 'Ich melde mich noch einmal'],
 ];
 let sendMenu = false, rowPop = null;
+let composerBig = {}; // pro Anfrage: Antwortfeld aufgeklappt?
+document.addEventListener('focusin', (e) => { if (e.target.id !== 'draft' && e.target.id !== 'aiins') return; const c = e.target.closest('.composer.top'); if (c && !c.classList.contains('big')) { c.classList.add('big'); if (current) composerBig[current.id] = true; } });
 let msgOrder = 'new'; try { msgOrder = localStorage.getItem('li-order') || 'new'; } catch (e) {}
 try { Object.assign(drafts, JSON.parse(localStorage.getItem('li-drafts') || '{}')); } catch (e) {}
 const saveDrafts = () => { try { localStorage.setItem('li-drafts', JSON.stringify(Object.fromEntries(Object.entries(drafts).filter(([, v]) => v)))); } catch (e) {} };
