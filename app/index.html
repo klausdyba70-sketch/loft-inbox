@@ -918,6 +918,7 @@ button.mhead{background:none;border:0;cursor:pointer;font:inherit;color:inherit}
 .composer.top .grip{margin:6px 0 0;height:14px}
 .composer.top .closed{padding:2px 0 10px}
 @media (max-width:760px){.composer.top{padding:12px 12px 4px!important}}
+.nav.navicon{padding:12px 0}
 </style>
 </head>
 <body data-view="auth">
@@ -1067,7 +1068,7 @@ function appShell() {
    <nav class="rail" aria-label="Bereiche"><div class="logo" aria-hidden="true">L</div>
     <button class="nav" data-view="inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>Anfragen<span class="cnt" id="navcnt" hidden></span></button>
     <button class="nav" data-view="cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="9" cy="14.5" r="1" fill="currentColor"/><circle cx="15" cy="14.5" r="1" fill="currentColor"/></svg>Kalender</button>
-    <button class="nav" data-view="set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>Einstellungen</button>
+    <button class="nav navicon" data-view="set" aria-label="Einstellungen" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></button>
    </nav>
    <aside class="pane list" id="list"></aside><section class="pane detail" id="detail"></section><section class="pane set" id="set"></section><section class="pane cal" id="cal"></section></div>`;
   view = location.hash.startsWith('#einstellungen') ? 'set' : location.hash.startsWith('#kalender') ? 'cal' : 'inbox';
