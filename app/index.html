@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#2b4fe0">
 <title>Loft Inbox</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 
 /* Layout: Desktop = Leiste | Liste | Verlauf. Mobil = eine Ansicht, Tabs unten. Kobaltblau als Leitfarbe, Violett für alles, was die KI macht. */
@@ -561,11 +561,11 @@ body.dragging iframe{pointer-events:none}
 @media (max-width:760px){.xclose{display:none}}
 .cbar{position:relative}
 .saved{font-size:12px;color:var(--mute)}
-.split{position:relative;display:flex}
-.split .send{display:inline-flex;align-items:center;gap:7px;border-radius:11px 0 0 11px}
-.split .send svg{width:16px;height:16px}
-.split .send.caret{border-radius:0 11px 11px 0;padding:0 11px;margin-left:1px}
-.split .send:disabled{opacity:.6}
+.sendsplit{position:relative;display:flex;flex:none}
+.sendsplit .send{display:inline-flex;align-items:center;gap:7px;border-radius:11px 0 0 11px}
+.sendsplit .send svg{width:16px;height:16px}
+.sendsplit .send.caret{border-radius:0 11px 11px 0;padding:0 11px;margin-left:1px}
+.sendsplit .send:disabled{opacity:.6}
 .smenu{position:absolute;right:0;bottom:calc(100% + 8px);width:290px;max-width:calc(100vw - 32px);background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgb(0 0 0/.16);padding:8px;z-index:20;display:flex;flex-direction:column}
 .smenu h4{margin:6px 8px 6px;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
 .smenu button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:8px 10px;border-radius:9px}
@@ -629,6 +629,111 @@ body[data-view="set"] .list,body[data-view="set"] .detail{display:none}
 #draft{max-height:50vh}
 /* Erstanfrage ohne dicken blauen Rahmen */
 .mail.first{border-color:var(--line);box-shadow:none}
+
+/* ===== Look: Salbei-Grün, warmes Off-White, Karten (Struktur unverändert) ===== */
+:root{
+  --bg:#f4f4f1;--surface:#ffffff;--sunk:#eceee9;--line:#e3e5df;--ink:#1d2a27;--mute:#7b847f;--soft:#4b5652;
+  --primary:#2f5149;--primary-2:#3f6a60;--primary-soft:#e3ebe7;--on-primary:#ffffff;
+  --ai:#4b5b96;--ai-soft:#eef0f8;--ai-line:#d9ddef;
+  --bubble-out:#2f5149;--on-out:#ffffff;
+  --red:#c2513f;--red-soft:#f9e8e4;--orange:#b4683f;--orange-soft:#f8ece4;--green:#3f7d5c;--green-soft:#e5f0e9;
+  --blue:#4b5b96;--violet:#7a4f7a;--grey-soft:#eceee9;--warn:#8a6a1f;--warn-soft:#fbf3dc;
+  --sP:#2f5149;--sF:#b4683f;
+  --font:"Inter",system-ui,-apple-system,sans-serif;--display:"Inter Tight","Inter",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;
+  --r:18px;--shadow:0 1px 2px rgb(20 40 35/.04),0 8px 24px rgb(20 40 35/.06);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111715;--surface:#19211e;--sunk:#222b28;--line:#2c3632;--ink:#e8ede9;--mute:#8d9792;--soft:#b9c2bd;
+  --primary:#7fb3a3;--primary-2:#5f9585;--primary-soft:#22322d;--on-primary:#0f1513;
+  --ai:#a3b1e6;--ai-soft:#232a40;--ai-line:#333c5c;--bubble-out:#2f5149;
+  --red-soft:#3a221e;--orange:#d99a72;--orange-soft:#3a2a1f;--green:#7fc49c;--green-soft:#1e3328;--blue:#a3b1e6;--grey-soft:#242c29;--warn-soft:#352d17;
+  --sP:#7fb3a3;--sF:#d99a72;--shadow:0 1px 2px rgb(0 0 0/.3),0 8px 24px rgb(0 0 0/.25);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111715;--surface:#19211e;--sunk:#222b28;--line:#2c3632;--ink:#e8ede9;--mute:#8d9792;--soft:#b9c2bd;
+  --primary:#7fb3a3;--primary-2:#5f9585;--primary-soft:#22322d;--on-primary:#0f1513;
+  --ai:#a3b1e6;--ai-soft:#232a40;--ai-line:#333c5c;--bubble-out:#2f5149;
+  --red-soft:#3a221e;--orange:#d99a72;--orange-soft:#3a2a1f;--green:#7fc49c;--green-soft:#1e3328;--blue:#a3b1e6;--grey-soft:#242c29;--warn-soft:#352d17;
+  --sP:#7fb3a3;--sF:#d99a72;--shadow:0 1px 2px rgb(0 0 0/.3),0 8px 24px rgb(0 0 0/.25);color-scheme:dark}
+body{font-family:var(--font);letter-spacing:-.005em}
+.lh h1,.set h1,.stats h1,.acard h1{font-family:var(--display);font-weight:800;letter-spacing:-.035em}
+.dinner h2{font-family:var(--display);font-weight:700;letter-spacing:-.025em;font-size:22px}
+/* Leiste: tiefes Grün */
+.rail{background:linear-gradient(180deg,#2c4c45,#3b5f57);border-right:0}
+.rail .logo{background:rgb(255 255 255/.14);color:#fff;border:1px solid rgb(255 255 255/.18)}
+.nav{color:rgb(255 255 255/.66)}
+.nav:hover{color:#fff}
+.nav[aria-current="page"]{background:rgb(255 255 255/.14);color:#fff}
+.nav .cnt{background:#e9b48f;color:#2c2018}
+:root[data-theme="dark"] .rail{background:linear-gradient(180deg,#15201d,#1d2b27)}
+/* Liste als Karten auf Off-White */
+.list{background:var(--bg);border-right:1px solid var(--line)}
+.lh{padding-top:20px}
+.sbox{background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.sbox:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.tfil{background:transparent}
+.tfil button{background:var(--surface);border:1px solid var(--line)}
+.tfil button[aria-pressed="true"]{background:var(--primary);color:var(--on-primary);border-color:var(--primary);box-shadow:none}
+.tfil button:first-child svg{color:inherit}
+.filters{border-bottom:0;padding-bottom:6px}
+.chip{background:transparent;border:1px solid var(--line);color:var(--soft)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.rows{background:var(--bg);padding:2px 0 8px}
+.grp{background:var(--bg);border:0;padding:16px var(--gr) 8px var(--g);color:var(--mute)}
+.grp span{background:var(--surface);border:1px solid var(--line)}
+.row{background:var(--surface);border:1px solid var(--line);border-radius:16px;margin:0 12px 8px;width:calc(100% - 24px);padding:12px 14px;box-shadow:0 1px 2px rgb(20 40 35/.03)}
+.row:hover{border-color:color-mix(in srgb,var(--primary) 30%,var(--line))}
+.row[aria-current="true"]{background:var(--surface);border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.row.sel{background:var(--primary-soft);border-color:var(--primary)}
+.row.unread .r1 time{color:var(--primary)}
+.qa{background:linear-gradient(90deg,transparent,var(--surface) 12px)!important}
+.selbar{background:var(--bg);border-bottom:0}
+.pager{background:var(--bg)}
+.bulk{background:var(--surface)}
+/* Segment-Schalter wie im Vorbild */
+.seg{background:var(--sunk);border-radius:12px;padding:3px}
+.seg button{border-radius:9px;color:var(--soft)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgb(20 40 35/.12)}
+/* Status-Pills ruhiger */
+.st{border-radius:8px;font-weight:600}
+.st-beantwortet{background:var(--ai-soft);color:var(--ai)}
+/* Verlauf */
+.detail{background:var(--bg)}
+.dh{background:var(--surface);border-bottom:1px solid var(--line)}
+.mail{border-radius:var(--r);box-shadow:var(--shadow);border-color:var(--line)}
+.mframe{border-radius:12px}
+.tagfirst{background:var(--primary-soft);color:var(--primary);border-radius:7px}
+.pill{border-radius:8px}
+.swb{border-radius:10px}
+/* Zusammenfassung als abgehobene grüne Karte */
+.sum{background:linear-gradient(135deg,#2c4c45,#46695f);border:0;color:#eef4f1;border-radius:var(--r);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.sum::after{content:"";position:absolute;right:-60px;top:-60px;width:200px;height:200px;border-radius:50%;border:28px solid rgb(255 255 255/.05)}
+.sum .ah{color:#bfe0d2}
+/* Antworten */
+.composer{background:var(--surface);border-top:1px solid var(--line)}
+#draft{background:var(--bg);border-radius:14px}
+.sendsplit .send,.send,.sbtn{background:var(--primary);color:var(--on-primary)}
+.sendsplit .send:hover,.send:hover{background:var(--primary-2)}
+.smenu{border-radius:16px}
+/* Rechte Spalte */
+.dside{background:var(--bg)}
+.sbox2{border-radius:var(--r);box-shadow:var(--shadow);border-color:var(--line)}
+.sbox2 h3{color:var(--mute)}
+.sbox2 h3::before{background:var(--primary)}
+.ssel{border-radius:12px;background:var(--bg)}
+.ssel.is-offen{background:var(--orange-soft);color:var(--orange)}
+.ssel.is-beantwortet{background:var(--ai-soft);color:var(--ai)}
+.dside .md.today>span:first-child,.md.today>span:first-child{background:var(--primary)!important;color:var(--on-primary)!important}
+/* Einstellungen und Dialoge */
+.scard{border-radius:var(--r);box-shadow:var(--shadow)}
+.switch[aria-checked="true"]{background:var(--primary)}
+.sheet,.rpop{border-radius:20px}
+.opt[aria-pressed="true"]{background:var(--primary-soft);color:var(--primary);box-shadow:inset 0 0 0 1.5px var(--primary)}
+.acard{border-radius:24px;box-shadow:var(--shadow)}
+.acard .logo{background:linear-gradient(135deg,#2c4c45,#46695f);color:#fff}
+.toast{background:#1d2a27;color:#fff;border-radius:14px}
+:focus-visible{outline-color:var(--primary)}
+mark{background:#f1dfa6}
+@media (max-width:760px){.row{margin:0 10px 8px;width:calc(100% - 20px)}}
 </style>
 </head>
 <body data-view="auth">
@@ -659,7 +764,7 @@ const COLOR_NAMES = { rot: 'Dringend', orange: 'Angebot offen', gruen: 'Zugesagt
 const STUDIO = { P: 'Penthouse Loft', F: 'Factory Loft', X: 'Studio offen' };
 const CATS = ['Verfügbarkeit', 'Preis', 'Besichtigung', 'Buchung', 'Workshop / Seminar', 'Event', 'Ausstattung', 'Sonstiges'];
 const ST_LABEL = { offen: 'Offen', beantwortet: 'Wartet auf Kunde', gebucht: 'Gebucht', abgeschlossen: 'Abgeschlossen', spam: 'Spam' };
-const AV = ['#2b4fe0', '#d6409f', '#1f9d5c', '#e08a00', '#8e4ec6', '#0e9bb5', '#e5484d'];
+const AV = ['#2f5149', '#b4683f', '#4b5b96', '#3f7d5c', '#8a6a2f', '#7a4f7a', '#c2513f'];
 const MAILBOX = 'mail@loftstudiocologne.com';
 
 let sb, threads = [], current = null, msgs = [], view = 'inbox';
@@ -895,7 +1000,7 @@ function detailHTML() {
    <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${Math.min(composerH, Math.round(innerHeight * 0.5))}px">${esc(drafts[t.id] || '')}</textarea>
    <div class="cbar"><small class="saved" id="saved">${drafts[t.id] ? 'Entwurf gespeichert' : ''}</small><span class="sp" style="flex:1"></span>
     <button class="icon" id="discard" title="Entwurf verwerfen" aria-label="Entwurf verwerfen" ${drafts[t.id] ? '' : 'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg></button>
-    <div class="split">${sendMenu ? `<div class="smenu" role="menu"><h4>Senden und festlegen als</h4>${SEND_AS.map(([k, l, sub]) => `<button role="menuitem" data-sendas="${k}"><b>${l}</b><small>${sub}</small></button>`).join('')}</div>` : ''}
+    <div class="sendsplit">${sendMenu ? `<div class="smenu" role="menu"><h4>Senden und festlegen als</h4>${SEND_AS.map(([k, l, sub]) => `<button role="menuitem" data-sendas="${k}"><b>${l}</b><small>${sub}</small></button>`).join('')}</div>` : ''}
      <button class="send" id="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>Senden</button><button class="send caret" id="sendmenu" aria-label="Senden und Status festlegen" aria-expanded="${sendMenu}">▾</button></div></div>`}</div></footer></div>${sideHTML(t)}`;
 }
 function frameDoc(html, imgs, quote) {
