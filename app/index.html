@@ -1192,7 +1192,11 @@ async function streamDraft(t, k) {
   for (;;) {
     const { value, done } = await reader.read(); if (done) break;
     raw += dec.decode(value, { stream: true });
-    const err = raw.match(/\[\[FEHLER: ([\s\S]*?)\]\]/); if (err) throw new Error(err[1]);
+    const err = raw.match(/\[\[FEHLER: ([\s\S]*?)\]\]/);
+    if (err) { // Server konnte nicht speichern: Text, der schon da ist, behalten und selbst speichern
+      if (entry.body.trim().length > 40) { entry.body = entry.body.trim(); await sb.from('drafts').delete().eq('thread_id', t.id).eq('position', pos); await sb.from('drafts').insert({ thread_id: t.id, label: entry.label === '…' ? VLABEL[k] : entry.label, body: entry.body, position: pos, based_on: entry.based_on }); console.warn('Entwurf lokal gespeichert:', err[1]); break; }
+      throw new Error(err[1]);
+    }
     const m = raw.match(/^\s*(?:LABEL|Label|Ansatz)\s*:\s*(.+)\n+/);
     const label = m ? m[1].replace(/[*"]/g, '').trim() : (raw.includes('\n') ? VLABEL[k] : '…');
     const body = (m ? raw.slice(m[0].length) : raw.includes('\n') && !/^\s*LABEL/i.test(raw) ? raw : '').replace(/\s+—\s+|\s+–\s+/g, ', ');
@@ -1201,7 +1205,7 @@ async function streamDraft(t, k) {
     if (current?.id === t.id && (curVar[t.id] ?? 0) === pos) { const ta = $('#draft'); if (ta && (ta.value === prevBody || !ta.value)) { ta.value = body; drafts[t.id] = body; } }
     if (current?.id === t.id && label !== '…') { const btn = document.querySelector(`.dvseg [data-pos="${pos}"]`); if (btn) btn.textContent = entry.label; }
   }
-  entry.body = entry.body.trim(); if (!entry.body) throw new Error('Die KI hat keinen Text geliefert.');
+  entry.body = entry.body.replace(/\n?\[\[FEHLER:[\s\S]*$/, '').trim(); if (!entry.body) throw new Error('Die Verbindung wurde beendet, bevor Text kam. Bitte nochmal versuchen.');
   if ((curVar[t.id] ?? 0) === pos && (!drafts[t.id] || drafts[t.id].trim() === entry.body)) { drafts[t.id] = entry.body; saveDrafts(); }
 }
 async function genDrafts(t) {

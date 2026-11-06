@@ -230,13 +230,14 @@ export function parseDraft(raw, key) {
   const m = text.match(/^\s*(?:LABEL|Label|Ansatz)\s*:\s*(.+)\n+/);
   if (m) { label = m[1].replace(/[*"]/g, '').trim(); text = text.slice(m[0].length); }
   else if (text.startsWith('{')) { try { const j = parseJson(text); label = j.label || ''; text = j.body || text; } catch (e) {} }
-  const body = text.replace(/\s+—\s+|\s+–\s+/g, ', ').trim();
+  let body = text.replace(/\s+—\s+|\s+–\s+/g, ', ').trim();
+  if (!body) body = String(raw || '').replace(/^\s*(?:LABEL|Label|Ansatz)\s*:[^\n]*\n?/, '').trim(); // Rückfall: alles nehmen, was kam
   label = (label || { direkt: 'Direkt', ausfuehrlich: 'Ausführlich', rueckfrage: 'Rückfrage' }[key] || 'Vorschlag').slice(0, 30);
   return { label, body };
 }
 export async function saveDraft(db, threadId, d, raw) {
   const { label, body } = parseDraft(raw, d.key);
-  if (!body) throw new Error('Die KI hat keinen Text geliefert' + (d.diag ? ' (' + d.diag + ')' : '') + '. Bitte nochmal versuchen.');
+  if (!body) throw new Error('Die KI hat keinen Text geliefert (' + (d.diag || 'Länge ' + String(raw || '').length) + '). Bitte nochmal versuchen.');
   await db.from('drafts').delete().eq('thread_id', threadId).eq('position', d.position);
   await db.from('drafts').insert({ thread_id: threadId, label, body, position: d.position, based_on: d.based_on });
   return { label, body, position: d.position, based_on: d.based_on };
