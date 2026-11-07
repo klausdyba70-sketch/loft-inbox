@@ -1003,6 +1003,10 @@ span.mtile{cursor:default}
 .sidecalh .calpop{top:34px;left:0;right:0;width:auto}
 .calpop b{min-width:0!important;text-align:left!important;font-size:12.5px!important;font-weight:600!important;text-transform:none!important}
 .calpop .callegend span{display:flex;align-items:center;gap:7px;white-space:normal}
+
+.sb-draft{background:var(--sunk);color:var(--soft);box-shadow:inset 0 0 0 1px var(--line);font-weight:600}
+#savedraft{margin-right:6px}
+@media (max-width:560px){#savedraft{font-size:12px;padding:0 8px}}
 </style>
 </head>
 <body data-view="auth">
@@ -1062,6 +1066,7 @@ const markTile = (t) => t.prio === 'hoch' && t.status === 'offen'
   ? `<span class="mtile on" style="--mk:var(--orange)" title="Angebot offen" aria-label="Angebot offen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h10l4 4v12H5z"/><path d="M14 4v5h5M8 13h8M8 17h5"/></svg></span>`
   : '';
 const rowState = (t) => t.status === 'spam' ? 'spam' : t.status === 'abgeschlossen' ? 'closed' : t.status === 'offen' ? (t.replied ? 'reply' : t.unread ? 'neu' : 'todo') : 'done';
+const draftBadge = (t) => myDrafts[t.id] && (drafts[t.id] || '').trim() && current?.id !== t.id ? '<span class="sb sb-draft">✎ Entwurf</span>' : '';
 const stateBadge = (t) => { const s = rowState(t); return s === 'reply' ? '<span class="sb sb-reply">↩ Hat geantwortet</span>' : s === 'neu' ? '<span class="sb sb-neu">Neu</span>' : s === 'todo' ? '' : s === 'done' ? `<span class="sb sb-done">✓ ${ST_LABEL[t.status]}</span>` : stPill(t); };
 const stPill = (t) => `<span class="st st-${t.status}">${ST_LABEL[t.status]}</span>`;
 const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
@@ -1247,7 +1252,7 @@ function rowsHTML() {
      ${selMode ? `<span class="cbx ${sel ? 'on' : ''}">${sel ? '✓' : ''}</span>` : ''}${markTile(t)}
      <span class="rc"><span class="r1"><b>${esc(t.name)}</b>${t.star ? '<span class="star">★</span>' : ''}<time>${fmtT(t.at)}</time></span>
      <span class="r2">${esc(t.subject)}</span>
-     <span class="r3">${stateBadge(t)}${t.prio === 'hoch' && t.status === 'offen' && t.color !== 'rot' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color === 'orange' && t.status !== 'abgeschlossen' ? `<span class="mkc">${COLOR_NAMES.orange}</span>` : ''}${(t.spam || 0) >= 40 && t.status !== 'spam' ? `<span class="st st-spam">Spam? ${t.spam} %</span>` : ''}${t.studio !== 'X' || t.cat ? `<span>${t.studio !== 'X' ? STUDIO[t.studio].replace(' Loft', '') : ''}${t.studio !== 'X' && t.cat ? ' · ' : ''}${esc(t.cat || '')}</span>` : ''}${w > 12 ? `<span class="hot">· ${Math.round(w)} h</span>` : ''}</span></span>${selMode ? '' : `<span class="qa"><button class="qbtn2 ${t.star ? 'on' : ''}" data-qstar="${t.id}" title="Wichtig" aria-label="Wichtig">★</button><button class="qbtn2" data-qdone="${t.id}" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="Erledigt">✓</button><button class="qbtn2" data-qmenu="${t.id}" title="Zuweisen" aria-label="Zuweisen">•••</button></span>`}</div>`;
+     <span class="r3">${draftBadge(t)}${stateBadge(t)}${t.prio === 'hoch' && t.status === 'offen' && t.color !== 'rot' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color === 'orange' && t.status !== 'abgeschlossen' ? `<span class="mkc">${COLOR_NAMES.orange}</span>` : ''}${(t.spam || 0) >= 40 && t.status !== 'spam' ? `<span class="st st-spam">Spam? ${t.spam} %</span>` : ''}${t.studio !== 'X' || t.cat ? `<span>${t.studio !== 'X' ? STUDIO[t.studio].replace(' Loft', '') : ''}${t.studio !== 'X' && t.cat ? ' · ' : ''}${esc(t.cat || '')}</span>` : ''}${w > 12 ? `<span class="hot">· ${Math.round(w)} h</span>` : ''}</span></span>${selMode ? '' : `<span class="qa"><button class="qbtn2 ${t.star ? 'on' : ''}" data-qstar="${t.id}" title="Wichtig" aria-label="Wichtig">★</button><button class="qbtn2" data-qdone="${t.id}" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="Erledigt">✓</button><button class="qbtn2" data-qmenu="${t.id}" title="Zuweisen" aria-label="Zuweisen">•••</button></span>`}</div>`;
   }).join('');
   const pager = `<div class="pager"><span class="pinfo">${from + 1}–${from + shown.length} von ${total}</span><div class="seg psize" role="group" aria-label="Pro Seite">${[10, 25, 50, 100].map((n) => `<button data-ps="${n}" aria-pressed="${pageSize === n}">${n}</button>`).join('')}</div><span class="pnav"><button class="icon" data-pg="-1" aria-label="Vorherige Seite" ${page === 0 ? 'disabled' : ''}>${I.back}</button><span class="pnum">${page + 1}/${pages}</span><button class="icon flip" data-pg="1" aria-label="Nächste Seite" ${page >= pages - 1 ? 'disabled' : ''}>${I.back}</button></span></div>`;
   return pre + selbar + rows + pager;
@@ -1306,7 +1311,7 @@ function detailHTML() {
    <div id="dbar">${draftBarHTML(t)}</div>
    <textarea id="draft" aria-label="Antwort" placeholder="Antwort schreiben …" style="height:${Math.min(Math.max(composerH, 260), Math.round(innerHeight * 0.8))}px">${esc(drafts[t.id] || '')}</textarea>
    ${aiOff ? '' : `<form class="aiedit" id="aiedit" autocomplete="off"><span class="ailbl">${I.spark}</span><input id="aiins" enterkeyhint="send" placeholder="Was soll die KI ändern? z. B. Overtime-Preis nennen, kürzer, Sie-Form" aria-label="Änderungswunsch an die KI"><button type="submit" class="mini">Ändern</button></form>`}
-   <div class="cbar"><small class="saved" id="saved">${drafts[t.id] ? 'Entwurf gespeichert' : ''}</small><span class="sp" style="flex:1"></span>
+   <div class="cbar"><button class="mini" id="savedraft" title="Entwurf speichern und später weiterschreiben">Als Entwurf speichern</button><small class="saved" id="saved">${drafts[t.id] ? 'Entwurf gespeichert' : ''}</small><span class="sp" style="flex:1"></span>
     <button class="icon" id="discard" title="Entwurf verwerfen" aria-label="Entwurf verwerfen" ${drafts[t.id] ? '' : 'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg></button>
     <div class="sendsplit">${sendMenu ? `<div class="smenu" role="menu"><h4>Senden und festlegen als</h4>${SEND_AS.map(([k, l, sub]) => `<button role="menuitem" data-sendas="${k}"><b>${l}</b><small>${sub}</small></button>`).join('')}</div>` : ''}
      <button class="send" id="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2.5-6.5z"/></svg>Senden</button><button class="send caret" id="sendmenu" aria-label="Senden und Status festlegen" aria-expanded="${sendMenu}">▾</button></div></div>`}</div>${closed ? '' : '<div class="grip" id="grip" role="separator" aria-orientation="horizontal" aria-label="Antwortfeld vergrößern oder verkleinern" tabindex="0"><i></i></div>'}</section>
@@ -1325,7 +1330,7 @@ function frameDoc(html, imgs, quote) {
 }
 function fitFrame(f) { try { const d = f.contentDocument; if (d) f.style.height = Math.max(60, d.documentElement.scrollHeight) + 'px'; } catch (e) {} }
 function bindDetail() {
-  const d = $('#draft'); let st; if (d) d.oninput = () => { drafts[current.id] = d.value; clearTimeout(st); st = setTimeout(() => { saveDrafts(); const sv = $('#saved'); if (sv) sv.textContent = d.value ? 'Entwurf gespeichert' : ''; const ds = $('#discard'); if (ds) ds.disabled = !d.value; }, 600); };
+  const d = $('#draft'); let st; if (d) d.oninput = () => { drafts[current.id] = d.value; saveUserDraft(current.id); clearTimeout(st); st = setTimeout(() => { saveDrafts(); const sv = $('#saved'); if (sv) sv.textContent = d.value ? 'Entwurf gespeichert' : ''; const ds = $('#discard'); if (ds) ds.disabled = !d.value; }, 600); };
   document.querySelectorAll('.mframe').forEach((f) => {
     const m = msgs.find((x) => x.id === f.dataset.mid); if (!m) return;
     f.onload = () => { fitFrame(f); setTimeout(() => fitFrame(f), 400); setTimeout(() => fitFrame(f), 1500); };
@@ -1357,8 +1362,10 @@ function draftBarHTML(t) {
    ${err && !busy ? `<div class="aierr">${esc(err)}</div>` : ''}`;
 }
 async function loadDrafts(t) {
-  const { data } = await sb.from('drafts').select('label,body,position,based_on').eq('thread_id', t.id).order('position');
-  aiDrafts[t.id] = data || [];
+  const { data: all } = await sb.from('drafts').select('label,body,position,based_on').eq('thread_id', t.id).order('position');
+  const mine = (all || []).find((d) => d.position === 9); if (mine) { myDrafts[t.id] = 1; saveMy(); } if (mine && !drafts[t.id]) { drafts[t.id] = mine.body; const ta = $('#draft'); if (ta && current?.id === t.id && !ta.value) { ta.value = mine.body; } }
+  const data = (all || []).filter((d) => d.position !== 9);
+  aiDrafts[t.id] = data;
   const li = lastInAt(), fresh = (data || []).length && li && data.every((d) => d.based_on && new Date(d.based_on) >= new Date(new Date(li) - 1000));
   const lastIsIn = msgs[msgs.length - 1]?.direction === 'in';
   if (!fresh || !lastIsIn) aiDrafts[t.id] = [];
@@ -1459,6 +1466,15 @@ document.addEventListener('focusin', (e) => { if (e.target.id !== 'draft' && e.t
 document.addEventListener('click', (e) => { if (!e.target.closest('#ccol')) return; const c = e.target.closest('.composer.top'); c?.classList.remove('big'); if (current) composerBig[current.id] = false; document.activeElement?.blur(); });
 let msgOrder = 'new'; try { msgOrder = localStorage.getItem('li-order') || 'new'; } catch (e) {}
 try { Object.assign(drafts, JSON.parse(localStorage.getItem('li-drafts') || '{}')); } catch (e) {}
+// Eigener Entwurf auch in der Datenbank (Position 9), damit er auf allen Geräten da ist
+const userDraftTimers = {};
+let myDrafts = {}; try { myDrafts = JSON.parse(localStorage.getItem('li-mydrafts') || '{}'); } catch (e) {}
+const saveMy = () => { try { localStorage.setItem('li-mydrafts', JSON.stringify(myDrafts)); } catch (e) {} };
+function saveUserDraft(id, now) {
+  clearTimeout(userDraftTimers[id]);
+  const run = async () => { const body = (drafts[id] || '').trim(); if (body) myDrafts[id] = 1; else delete myDrafts[id]; saveMy(); try { await sb.from('drafts').delete().eq('thread_id', id).eq('position', 9); if (body) await sb.from('drafts').insert({ thread_id: id, label: 'Mein Entwurf', body, position: 9 }); } catch (e) {} };
+  if (now) return run(); userDraftTimers[id] = setTimeout(run, 1500);
+}
 const saveDrafts = () => { try { localStorage.setItem('li-drafts', JSON.stringify(Object.fromEntries(Object.entries(drafts).filter(([, v]) => v)))); } catch (e) {} };
 function scrollNewest() { const sc = $('#dscroll'); if (!sc) return; sc.scrollTop = msgOrder === 'new' ? 0 : 1e9; }
 // Vor dem Senden immer nachfragen. Ohne diese Bestätigung lehnt der Server das Senden ab.
@@ -1486,7 +1502,7 @@ async function sendReply(as = 'beantwortet') {
   const b = $('#send'); b.disabled = true; b.lastChild.textContent = 'Sende …'; $('#sendmenu').disabled = true;
   try {
     const sr = await api('/api/send', { threadId: t.id, body, confirmedByKlaus: confirmedSend === t.id }); confirmedSend = null;
-    drafts[t.id] = ''; saveDrafts(); try { sb.from('drafts').delete().eq('thread_id', t.id).then(() => {}, () => {}); } catch (err) {}
+    drafts[t.id] = ''; delete myDrafts[t.id]; saveMy(); saveDrafts(); try { sb.from('drafts').delete().eq('thread_id', t.id).then(() => {}, () => {}); } catch (err) {}
     const fields = { angebot: { status: 'beantwortet', color: 'orange' }, gebucht: { status: 'gebucht', color: 'gruen' }, abgeschlossen: { status: 'abgeschlossen', color: null }, offen: { status: 'offen' }, beantwortet: { status: 'beantwortet' } }[as];
     await loadThreads();
     const fresh = threads.find((x) => x.id === t.id); if (fresh) await patch(fresh, fields);
@@ -1960,7 +1976,8 @@ document.addEventListener('click', async (e) => {
   if (b.id === 'send') { askSend('beantwortet'); return; }
   if (b.id === 'sendmenu') { sendMenu = !sendMenu; redrawDetail(); return; }
   if (b.dataset.sendas) { askSend(b.dataset.sendas); return; }
-  if (b.id === 'discard') { drafts[t.id] = ''; saveDrafts(); redrawDetail(); toast('Entwurf verworfen'); return; }
+  if (b.id === 'savedraft') { const ta = $('#draft'); drafts[t.id] = ta?.value || ''; saveDrafts(); await saveUserDraft(t.id, true); const c = ta?.closest('.composer.top'); c?.classList.remove('big'); composerBig[t.id] = false; renderList(); toast(drafts[t.id].trim() ? 'Entwurf gespeichert. Du findest ihn hier wieder, auch auf anderen Geräten.' : 'Nichts zu speichern'); return; }
+  if (b.id === 'discard') { drafts[t.id] = ''; saveDrafts(); saveUserDraft(t.id, true); redrawDetail(); renderList(); toast('Entwurf verworfen'); return; }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheet) { sheet = null; render(); } });
 
