@@ -1102,6 +1102,14 @@ function loginView(msg = '') {
     route();
   };
 }
+// Supabase liefert den QR-Code als rohes SVG (teils mit Anführungszeichen). Sicher als Bild-Adresse kodieren.
+function qrSrc(q) {
+  q = String(q || '');
+  const m = q.match(/^data:image\/svg\+xml(?:;charset=utf-8|;utf-8)?,([\s\S]*)$/i);
+  if (m && /<svg/i.test(m[1])) return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m[1]);
+  if (/^\s*<svg/i.test(q)) return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(q);
+  return q;
+}
 async function mfaView() {
   const { data: f } = await sb.auth.mfa.listFactors();
   const verified = (f?.totp || []).find((x) => x.status === 'verified');
@@ -1112,7 +1120,7 @@ async function mfaView() {
     const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Loft Inbox ' + new Date().toISOString().slice(0, 16).replace('T', ' ') });
     if (error) return loginView('Zweiter Faktor konnte nicht eingerichtet werden: ' + error.message);
     factorId = data.id;
-    setup = `<p class="sub">Einmalig: Scanne den Code mit deiner Authenticator-App.</p><div class="qr"><img alt="QR-Code" src="${data.totp.qr_code}"></div><p class="sub">Oder Schlüssel manuell eingeben:</p><div class="code">${esc(data.totp.secret)}</div>`;
+    setup = `<p class="sub">Einmalig: Scanne den Code mit deiner Authenticator-App.</p><div class="qr"><img alt="QR-Code" src="${qrSrc(data.totp.qr_code)}"></div><p class="sub">Oder Schlüssel manuell eingeben:</p><div class="code">${esc(data.totp.secret)}</div>`;
   }
   authShell(`<form class="acard" id="mfa"><div class="logo">L</div><h1>Zweiter Faktor</h1>${setup}
   <label class="fl">6-stelliger Code aus der App<input id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
