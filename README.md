@@ -62,7 +62,7 @@ KI: `ANTHROPIC_API_KEY` (geheim) und `NOTION_TOKEN` (geheim). Optional `AI_MODEL
 
 Kalender (nur lesen): `GCAL_PENTHOUSE_ICS` und `GCAL_FACTORY_ICS` (geheim), jeweils die "Privatadresse im iCal-Format" des Google-Kalenders. Über diese Adressen kann die App keine Termine anlegen oder ändern.
 
-Später: Freshdesk-Schlüssel.
+Freshdesk-Import: `FRESHDESK_API_KEY` (geheim). Optional `FRESHDESK_DOMAIN` (Standard loftstudiocologne.freshdesk.com). Start in den Einstellungen, läuft als Hintergrundfunktion `/api/freshdesk/import`, holt die Antworten der letzten 2 Jahre und setzt sich selbst fort.
 
 ## Bekannte, nicht geheime Werte
 
