@@ -1,11 +1,15 @@
-// Antwort aus der App über mail@ senden (Antwort auf die letzte eingegangene Mail des Verlaufs)
+// Antwort aus der App über mail@ senden (Antwort auf die letzte eingegangene Mail des Verlaufs).
+// Die EINZIGE Stelle, die Mails verschickt. Nur nach ausdrücklicher Bestätigung durch Klaus, nie automatisch, nie zeitgesteuert.
 import { guard, json, requireOwner, msAccessToken, graph } from '../lib/core.mjs';
 import { runSync } from '../lib/sync.mjs';
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export default guard(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Nur POST' }, 405);
   const { db } = await requireOwner(req);
-  const { threadId, body } = await req.json();
+  const { threadId, body, confirmedByKlaus } = await req.json();
+  // FESTE REGEL: Nichts geht automatisch an Kunden. Senden nur, wenn Klaus im Fenster "Antwort wirklich senden?" bestätigt hat.
+  if (confirmedByKlaus !== true) return json({ error: 'Senden nur nach Bestätigung durch Klaus' }, 403);
+  if (req.headers.get('x-loft-internal')) return json({ error: 'Automatischer Versand ist gesperrt' }, 403);
   if (!threadId || !body?.trim()) return json({ error: 'Antworttext fehlt' }, 400);
   const { data: th } = await db.from('threads').select('id,is_test,status,subject,first_response_minutes,contacts(email)').eq('id', threadId).maybeSingle();
   if (th?.is_test) {

@@ -14,6 +14,12 @@ Anfragen-App für Loft Studio Cologne (Ersatz für Freshdesk). Ein Nutzer, Postf
 
 App und Daten sind getrennt: Ein Update der App ändert nie die Daten. Datenbank-Änderungen laufen nur über neue Dateien in `supabase/migrations/`, die ausschließlich hinzufügen.
 
+## Nie automatisch an Kunden senden (feste Regel)
+
+- Mails gehen nur raus, wenn Klaus im Fenster „Antwort wirklich senden?" bestätigt. Die KI schreibt nur Entwürfe.
+- Einzige Versandstelle ist `netlify/functions/send.mjs`, sie verlangt `confirmedByKlaus: true`.
+- `scripts/check-no-autosend.mjs` läuft bei jedem Build und stoppt die Veröffentlichung, falls irgendwo anders Versand-Code auftaucht.
+
 ## Postfach bleibt unangetastet (feste Regel)
 
 - Die App **liest** mail@ nur. Sie löscht, verschiebt oder markiert keine Mails, alles bleibt auf dem Microsoft-Server.

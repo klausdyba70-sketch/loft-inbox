@@ -1461,7 +1461,8 @@ let msgOrder = 'new'; try { msgOrder = localStorage.getItem('li-order') || 'new'
 try { Object.assign(drafts, JSON.parse(localStorage.getItem('li-drafts') || '{}')); } catch (e) {}
 const saveDrafts = () => { try { localStorage.setItem('li-drafts', JSON.stringify(Object.fromEntries(Object.entries(drafts).filter(([, v]) => v)))); } catch (e) {} };
 function scrollNewest() { const sc = $('#dscroll'); if (!sc) return; sc.scrollTop = msgOrder === 'new' ? 0 : 1e9; }
-// Vor dem Senden immer nachfragen
+// Vor dem Senden immer nachfragen. Ohne diese Bestätigung lehnt der Server das Senden ab.
+let confirmedSend = null;
 function askSend(as) {
   const t = current, body = ($('#draft')?.value || '').trim(); if (!t) return; if (!body) return toast('Die Antwort ist leer.');
   sendMenu = false; redrawDetail();
@@ -1476,7 +1477,7 @@ function askSend(as) {
 const closeConfirm = () => { const c = $('#confirm'); if (c) c.innerHTML = ''; };
 document.addEventListener('click', (e) => {
   if (e.target.id === 'cscrim' || e.target.closest('#cno')) { closeConfirm(); return; }
-  const y = e.target.closest('#cyes'); if (y) { const as = y.dataset.as; closeConfirm(); sendReply(as); }
+  const y = e.target.closest('#cyes'); if (y) { const as = y.dataset.as; closeConfirm(); confirmedSend = current?.id || null; sendReply(as); }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#confirm')?.innerHTML) closeConfirm(); });
 async function sendReply(as = 'beantwortet') {
@@ -1484,7 +1485,7 @@ async function sendReply(as = 'beantwortet') {
   sendMenu = false;
   const b = $('#send'); b.disabled = true; b.lastChild.textContent = 'Sende …'; $('#sendmenu').disabled = true;
   try {
-    const sr = await api('/api/send', { threadId: t.id, body });
+    const sr = await api('/api/send', { threadId: t.id, body, confirmedByKlaus: confirmedSend === t.id }); confirmedSend = null;
     drafts[t.id] = ''; saveDrafts(); try { sb.from('drafts').delete().eq('thread_id', t.id).then(() => {}, () => {}); } catch (err) {}
     const fields = { angebot: { status: 'beantwortet', color: 'orange' }, gebucht: { status: 'gebucht', color: 'gruen' }, abgeschlossen: { status: 'abgeschlossen', color: null }, offen: { status: 'offen' }, beantwortet: { status: 'beantwortet' } }[as];
     await loadThreads();

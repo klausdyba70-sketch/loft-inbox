@@ -1,4 +1,5 @@
 [build]
+  command = "node scripts/check-no-autosend.mjs"
   publish = "app"
   functions = "netlify/functions"
 
