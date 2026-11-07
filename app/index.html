@@ -1007,6 +1007,9 @@ span.mtile{cursor:default}
 .sb-draft{background:var(--sunk);color:var(--soft);box-shadow:inset 0 0 0 1px var(--line);font-weight:600}
 #savedraft{margin-right:6px}
 @media (max-width:560px){#savedraft{font-size:12px;padding:0 8px}}
+
+.loadold{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px var(--gr) 22px var(--g);text-align:center}
+.loadold small{font-size:12px;color:var(--mute)}
 </style>
 </head>
 <body data-view="auth">
@@ -1187,11 +1190,17 @@ function render() {
 }
 
 // ---------- Liste ----------
+// Beim Start nur die letzten 6 Monate (plus alles, was noch offen ist). Ältere erst bei Bedarf.
+let allLoaded = false;
+const cutoffIso = () => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.toISOString(); };
+async function loadAll() { if (allLoaded) return; allLoaded = true; toast('Lade ältere Anfragen …'); await loadThreads(); }
 async function loadThreads() {
   // Supabase liefert höchstens 1000 Zeilen pro Abfrage, daher in Blöcken laden
   const all = [];
   for (let from = 0; from < 20000; from += 1000) {
-    const { data, error } = await sb.from('threads').select('id,subject,status,unread,starred,priority,marker,studio,category,spam_score,summary,kind,is_test,requested_date,ai_at,first_response_minutes,last_message_at,contacts(name,email)').order('last_message_at', { ascending: false }).range(from, from + 999);
+    let qy = sb.from('threads').select('id,subject,status,unread,starred,priority,marker,studio,category,spam_score,summary,kind,is_test,requested_date,ai_at,first_response_minutes,last_message_at,contacts(name,email)');
+    if (!allLoaded) qy = qy.or(`last_message_at.gte."${cutoffIso()}",status.eq.offen`);
+    const { data, error } = await qy.order('last_message_at', { ascending: false }).range(from, from + 999);
     if (error) { toast(error.message); return; }
     all.push(...data);
     if (data.length < 1000) break;
@@ -1238,7 +1247,7 @@ function rowsHTML() {
   const grouped = !q;
   list = list.sort((a, b) => (grouped ? bucket(a)[0] - bucket(b)[0] || sortKey(a) - sortKey(b) : sortKey(a) - sortKey(b)));
   const pre = q.startsWith('@') ? `<div class="answer"><div class="ah">${I.spark}Antwort der KI</div><p>${esc(askRes.answer)}</p></div>` : q ? `<div class="rcount">${list.length} Treffer in allen Ordnern${msgHits === null && q.length >= 3 ? ' · Mailtexte werden durchsucht …' : ''}</div>` : '';
-  if (!list.length) return pre + (q ? '' : `<div class="empty"><b>${box === 'sonstiges' ? 'Nichts unter Sonstiges' : 'Alles erledigt'}</b>${box === 'sonstiges' ? 'Rechnungen, Benachrichtigungen und Newsletter sortiert die KI hierher.' : 'Hier ist gerade nichts.'}</div>`);
+  if (!list.length) return pre + (q ? '' : `<div class="empty"><b>${box === 'sonstiges' ? 'Nichts unter Sonstiges' : 'Alles erledigt'}</b>${box === 'sonstiges' ? 'Rechnungen, Benachrichtigungen und Newsletter sortiert die KI hierher.' : 'Hier ist gerade nichts.'}</div>`) + (allLoaded ? '' : `<div class="loadold"><button class="mini" id="loadold">Ältere Anfragen laden</button><small>Angezeigt werden die letzten 6 Monate und alles, was noch offen ist.</small></div>`);
   const total = list.length, pages = Math.max(1, Math.ceil(total / pageSize)); if (page >= pages) page = pages - 1;
   const from = page * pageSize, shown = list.slice(from, from + pageSize);
   const allSel = shown.length && shown.every((t) => selected.has(t.id));
@@ -1255,7 +1264,8 @@ function rowsHTML() {
      <span class="r3">${draftBadge(t)}${stateBadge(t)}${t.prio === 'hoch' && t.status === 'offen' && t.color !== 'rot' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color === 'orange' && t.status !== 'abgeschlossen' ? `<span class="mkc">${COLOR_NAMES.orange}</span>` : ''}${(t.spam || 0) >= 40 && t.status !== 'spam' ? `<span class="st st-spam">Spam? ${t.spam} %</span>` : ''}${t.studio !== 'X' || t.cat ? `<span>${t.studio !== 'X' ? STUDIO[t.studio].replace(' Loft', '') : ''}${t.studio !== 'X' && t.cat ? ' · ' : ''}${esc(t.cat || '')}</span>` : ''}${w > 12 ? `<span class="hot">· ${Math.round(w)} h</span>` : ''}</span></span>${selMode ? '' : `<span class="qa"><button class="qbtn2 ${t.star ? 'on' : ''}" data-qstar="${t.id}" title="Wichtig" aria-label="Wichtig">★</button><button class="qbtn2" data-qdone="${t.id}" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="Erledigt">✓</button><button class="qbtn2" data-qmenu="${t.id}" title="Zuweisen" aria-label="Zuweisen">•••</button></span>`}</div>`;
   }).join('');
   const pager = `<div class="pager"><span class="pinfo">${from + 1}–${from + shown.length} von ${total}</span><div class="seg psize" role="group" aria-label="Pro Seite">${[10, 25, 50, 100].map((n) => `<button data-ps="${n}" aria-pressed="${pageSize === n}">${n}</button>`).join('')}</div><span class="pnav"><button class="icon" data-pg="-1" aria-label="Vorherige Seite" ${page === 0 ? 'disabled' : ''}>${I.back}</button><span class="pnum">${page + 1}/${pages}</span><button class="icon flip" data-pg="1" aria-label="Nächste Seite" ${page >= pages - 1 ? 'disabled' : ''}>${I.back}</button></span></div>`;
-  return pre + selbar + rows + pager;
+  const older = allLoaded ? '' : `<div class="loadold"><button class="mini" id="loadold">Ältere Anfragen laden</button><small>Angezeigt werden die letzten 6 Monate und alles, was noch offen ist.</small></div>`;
+  return pre + selbar + rows + pager + older;
 }
 function bulkHTML() {
   if (!selMode) return '';
@@ -1273,7 +1283,9 @@ function bindList() {
       const term = query.trim();
       const { data } = await sb.from('messages').select('thread_id').ilike('body_text', `%${term.replace(/[%_]/g, '')}%`).limit(1000);
       if (term !== query.trim()) return;
-      msgHits = new Set((data || []).map((r) => r.thread_id)); $('#rows').innerHTML = rowsHTML();
+      msgHits = new Set((data || []).map((r) => r.thread_id));
+      if (!allLoaded && [...msgHits].some((id) => !threads.find((t) => t.id === id))) await loadAll();
+      $('#rows').innerHTML = rowsHTML();
     }, 350);
   };
 }
@@ -1908,7 +1920,8 @@ document.addEventListener('click', async (e) => {
   if (!b || !sb) return;
   const t = current;
   if (b.dataset.view) { view = b.dataset.view; sheet = null; history.replaceState(null, '', view === 'set' ? '#einstellungen' : view === 'cal' ? '#kalender' : '#'); render(); return; }
-  if (b.dataset.f) { filter = b.dataset.f; page = 0; renderList(); return; }
+  if (b.dataset.f) { filter = b.dataset.f; page = 0; renderList(); if (filter === 'abgeschlossen' || filter === 'spam') loadAll(); return; }
+  if (b.id === 'loadold') { loadAll(); return; }
   if (b.dataset.box) { box = b.dataset.box; page = 0; filter = 'alle'; renderList(); return; }
   if (b.id === 'tnew') { testNew(); return; }
   if (b.id === 'texit' || b.id === 'testoff') { testMode = false; try { localStorage.setItem('li-test', '0'); } catch (err) {} current = null; render(); return; }
