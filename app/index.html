@@ -988,6 +988,21 @@ span.mtile{cursor:default}
 
 .set .scard,.set .stack,.set>*{min-width:0;max-width:100%}
 @media (max-width:560px){.costtab>div{grid-template-columns:minmax(90px,1.4fr) 50px minmax(80px,1fr) 70px;min-width:330px;font-size:12.5px}.costtab small{display:none}}
+
+.calinfo{position:relative;display:inline-block}
+.calinfo summary{list-style:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:600 12px/1 var(--display);font-style:italic;color:var(--mute);border:1.5px solid var(--line);cursor:pointer;user-select:none}
+.calinfo summary::-webkit-details-marker{display:none}
+.calinfo[open] summary{color:var(--ink);border-color:var(--ink)}
+.calpop{position:absolute;z-index:30;top:30px;right:0;width:250px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 30px rgb(20 40 35/.16);padding:10px 14px}
+.calpop .callegend{flex-direction:column;gap:6px;margin:0;font-size:12.5px}
+.sidecalh{gap:8px}
+.smnav{display:flex;align-items:center;justify-content:space-between}
+.smnav .icon{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;font-size:16px;color:var(--ink)}
+.sidecalh{position:relative}
+.sidecalh .calinfo{position:static}
+.sidecalh .calpop{top:34px;left:0;right:0;width:auto}
+.calpop b{min-width:0!important;text-align:left!important;font-size:12.5px!important;font-weight:600!important;text-transform:none!important}
+.calpop .callegend span{display:flex;align-items:center;gap:7px;white-space:normal}
 </style>
 </head>
 <body data-view="auth">
@@ -1697,6 +1712,9 @@ function calStats(months) {
     <div class="cnum"><span><em>${pct(f)} %</em> voll</span><span><em>${pct(h)} %</em> teilweise</span><span><em>${pct(f + h)} %</em> gebucht</span></div>
     <small>${f} ganze Tage, ${h} Tage teilweise von ${days}</small></div>`; }).join('')}</div>`;
 }
+function calInfo() {
+  return `<details class="calinfo"><summary aria-label="Erklärung der Punkte" title="Was bedeuten die Punkte?">i</summary><div class="calpop">${calLegend()}</div></details>`;
+}
 function calLegend() {
   return `<div class="callegend">
    <span><i class="dt" style="--c:var(--sP)"></i><b>Grün</b> = Penthouse Loft</span>
@@ -1740,14 +1758,14 @@ function renderCal() {
   const [y, m] = calCursor;
   const keys = calMode === 'half' ? [0, 1, 2, 3, 4, 5].map((i) => mkey(y, m + i)) : [mkey(y, m)];
   el.innerHTML = `<div class="calh"><h1>Kalender</h1>
-    <div class="calnav"><button class="icon" data-calnav="-1" aria-label="Zurück">‹</button><b>${calMode === 'half' ? monthName(y, m).split(' ')[0] + ' – ' + monthName(...normYM(y, m + 5)) : monthName(y, m)}</b><button class="icon" data-calnav="1" aria-label="Weiter">›</button><button class="mini" data-calnav="0">Heute</button></div>
+    <div class="calnav"><button class="icon" data-calnav="-1" aria-label="Zurück">‹</button><b>${calMode === 'half' ? monthName(y, m).split(' ')[0] + ' – ' + monthName(...normYM(y, m + 5)) : monthName(y, m)}</b><button class="icon" data-calnav="1" aria-label="Weiter">›</button><button class="mini" data-calnav="0">Heute</button>${calInfo()}</div>
     <div class="seg"><button data-calmode="month" aria-pressed="${calMode === 'month'}">Monat</button><button data-calmode="half" aria-pressed="${calMode === 'half'}">6 Monate</button></div></div>
    ${calNeeds(keys) ? '<div class="calleg"><span>Lade …</span></div>' : ''}
    ${calNote()}
    ${calOn() && !calNeeds(keys) ? calStats(calMode === 'half' ? [0, 1, 2, 3, 4, 5].map((i) => normYM(y, m + i)) : [[y, m]]) : ''}
    ${calMode === 'half'
-    ? `${calLegend()}<div class="halfgrid">${[0, 1, 2, 3, 4, 5].map((i) => { const [yy, mm] = normYM(y, m + i); return `<div class="hm"><h3>${monthName(yy, mm)}</h3>${monthGrid(yy, mm, { sel: calSel })}</div>`; }).join('')}</div>${calSel ? dayPanel(calSel) : ''}`
-    : `<div class="calwrap"><div>${monthGrid(y, m, { big: true, sel: calSel })}${calLegend()}</div>${dayPanel(calSel)}</div>`}`;
+    ? `<div class="halfgrid">${[0, 1, 2, 3, 4, 5].map((i) => { const [yy, mm] = normYM(y, m + i); return `<div class="hm"><h3>${monthName(yy, mm)}</h3>${monthGrid(yy, mm, { sel: calSel })}</div>`; }).join('')}</div>${calSel ? dayPanel(calSel) : ''}`
+    : `<div class="calwrap"><div>${monthGrid(y, m, { big: true, sel: calSel })}</div>${dayPanel(calSel)}</div>`}`;
   if (calNeeds(keys)) ensureCal(keys).then(() => { if (view === 'cal') renderCal(); });
 }
 function normYM(y, m) { const d = new Date(y, m, 1); return [d.getFullYear(), d.getMonth()]; }
@@ -1761,11 +1779,13 @@ function availRow(t) {
   const list = CSTU.filter(([s]) => calCfg[s] && !calErrs[s]).sort((a, b) => (b[0] === t.studio) - (a[0] === t.studio));
   return `<div class="avrow">${list.map(([s, l]) => `<span class="avc lv${inf[s].lv}"><i></i>${l} ${lvText(inf[s], inf.a, inf.b)}</span>`).join('')}</div>`;
 }
+let sideOff = {}; // Monatsversatz des kleinen Kalenders je Anfrage
 function sideCalHTML(t) {
-  const base = t.reqDate ? new Date(t.reqDate + 'T12:00:00') : new Date(), y = base.getFullYear(), m = base.getMonth();
+  const b0 = t.reqDate ? new Date(t.reqDate + 'T12:00:00') : new Date(), [y, m] = normYM(b0.getFullYear(), b0.getMonth() + (sideOff[t.id] || 0));
+  const k = mkey(y, m); if (!calCache[k]) ensureCal([k]).then(() => { if (current?.id === t.id) fillAvail(); });
   const inf = t.reqDate && calCache[t.reqDate.slice(0, 7)] ? dayEv(t.reqDate) : null;
-  return `<div class="sidecalh"><h3>Kalender</h3><button class="mini" data-calgo="${t.reqDate || isoOf(new Date())}">Öffnen</button></div>
-   <div class="mmh"><b>${monthName(y, m)}</b></div>${monthGrid(y, m, { mark: t.reqDate })}${calLegend()}
+  return `<div class="sidecalh"><h3>Kalender</h3>${calInfo()}<span style="flex:1"></span><button class="mini" data-calgo="${t.reqDate || isoOf(new Date())}">Öffnen</button></div>
+   <div class="mmh smnav"><button class="icon" data-sidenav="-1" aria-label="Vorheriger Monat">‹</button><b>${monthName(y, m)}</b><button class="icon" data-sidenav="1" aria-label="Nächster Monat">›</button></div>${monthGrid(y, m, { mark: t.reqDate })}
    ${calNote()}
    ${inf && calOn() ? `<div class="avlist">${CSTU.filter(([s]) => calCfg[s]).map(([s, l, col]) => `<div class="cstu"><b><i style="--c:${col}"></i>${l}<small class="${['free', 'part', 'busy'][inf[s].lv]}">${lvText(inf[s], inf.a, inf.b)}</small></b></div>`).join('')}<p class="hint2">Stand für ${fmtDay(t.reqDate)}</p></div>` : ''}`;
 }
@@ -1820,6 +1840,7 @@ async function fillCalCard() {
    <div class="srow"><div class="stx"><b>Nur Lesen</b><small>Die App kann über die iCal-Adressen keine Termine anlegen oder ändern. Anny und Google laufen unverändert weiter.</small></div></div>`;
 }
 document.addEventListener('click', (e) => {
+  const sn = e.target.closest('[data-sidenav]'); if (sn && current) { sideOff[current.id] = (sideOff[current.id] || 0) + Number(sn.dataset.sidenav); fillAvail(); return; }
   const b = e.target.closest('[data-calnav],[data-calmode],[data-day],[data-calgo],[data-open]'); if (!b) return;
   if (b.dataset.open) { view = 'inbox'; history.replaceState(null, '', '#'); render(); openThread(b.dataset.open); return; }
   if (b.dataset.calgo) { const d = new Date(b.dataset.calgo + 'T12:00:00'); calCursor = [d.getFullYear(), d.getMonth()]; calSel = b.dataset.calgo; calMode = 'month'; view = 'cal'; history.replaceState(null, '', '#kalender'); render(); return; }
