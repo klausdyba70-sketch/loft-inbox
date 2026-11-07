@@ -16,7 +16,7 @@ export default async (req) => {
       const { data } = await db.from('sync_state').select('value').eq('key', 'freshdesk:import').maybeSingle();
       if (data?.value?.status === 'läuft' && Date.now() - new Date(data.value.at).getTime() < 120000) return; // läuft schon
     }
-    const st = await runImport(db, { budgetMs: 12 * 60000 });
+    const st = await runImport(db, { budgetMs: 9 * 60000 });
     if (st.status === 'pausiert' && !st.error) {
       // nächsten Lauf anstoßen
       const base = process.env.URL || APP_URL();

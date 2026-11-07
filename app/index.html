@@ -1010,6 +1010,9 @@ span.mtile{cursor:default}
 
 .loadold{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px var(--gr) 22px var(--g);text-align:center}
 .loadold small{font-size:12px;color:var(--mute)}
+
+.sb-spam{background:var(--red-soft,#fde8e6);color:var(--red);font-weight:600}
+.sb-ad{background:var(--sunk);color:var(--mute);font-weight:600;box-shadow:inset 0 0 0 1px var(--line)}
 </style>
 </head>
 <body data-view="auth">
@@ -1046,8 +1049,10 @@ const AV = ['#2f5149', '#b4683f', '#4b5b96', '#3f7d5c', '#8a6a2f', '#7a4f7a', '#
 const MAILBOX = 'mail@loftstudiocologne.com';
 
 let sb, threads = [], current = null, msgs = [], view = 'inbox';
-let filter = 'alle', tfil = 'alle', query = '', msgHits = null, page = 0, pageSize = 25;
+let filter = 'offen', tfil = 'alle', query = '', msgHits = null, page = 0, pageSize = 25;
 let viewMode = {}, showImgs = {}, showQuote = {};
+// Bilder in Mails der letzten 6 Monate automatisch zeigen, ältere erst auf Klick
+const imgsOn = (m) => showImgs[m.id] ?? (Date.now() - new Date(m.sent_at).getTime() < 183 * 864e5);
 let aiErr = {}, box = 'anfragen', testMode = false, aiDrafts = {}, aiBusy = {}, testTyping = {}, askRes = null, askBusy = false, aiOff = false, curVar = {};
 try { testMode = localStorage.getItem('li-test') === '1'; } catch (e) {}
 const inScope = (t) => (testMode ? t.isTest : !t.isTest) && (box === 'sonstiges' ? t.kind === 'sonstiges' : t.kind !== 'sonstiges');
@@ -1070,6 +1075,7 @@ const markTile = (t) => t.prio === 'hoch' && t.status === 'offen'
   : '';
 const rowState = (t) => t.status === 'spam' ? 'spam' : t.status === 'abgeschlossen' ? 'closed' : t.status === 'offen' ? (t.replied ? 'reply' : t.unread ? 'neu' : 'todo') : 'done';
 const draftBadge = (t) => myDrafts[t.id] && (drafts[t.id] || '').trim() && current?.id !== t.id ? '<span class="sb sb-draft">✎ Entwurf</span>' : '';
+const kindBadge = (t) => t.status === 'spam' || t.kind === 'spam' ? '<span class="sb sb-spam">Spam</span>' : t.category === 'Werbung' ? '<span class="sb sb-ad">Werbung</span>' : '';
 const stateBadge = (t) => { const s = rowState(t); return s === 'reply' ? '<span class="sb sb-reply">↩ Hat geantwortet</span>' : s === 'neu' ? '<span class="sb sb-neu">Neu</span>' : s === 'todo' ? '' : s === 'done' ? `<span class="sb sb-done">✓ ${ST_LABEL[t.status]}</span>` : stPill(t); };
 const stPill = (t) => `<span class="st st-${t.status}">${ST_LABEL[t.status]}</span>`;
 const today0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
@@ -1083,10 +1089,10 @@ const sortKey = (t) => sortMode === 'neu' ? -t.at : sortKeyWichtig(t);
 const sortKeyWichtig = (t) => (t.prio === 'hoch' && t.status === 'offen' ? 0 : 1) * 1e13 + (t.status === 'offen' ? 0 : 1) * 1e12 - +t.at / 10;
 let showClosed = false; try { showClosed = localStorage.getItem('li-showclosed') === '1'; } catch (e) {}
 const FILTERS = [
-  ['alle', 'Alle', (t) => t.status !== 'spam' && (showClosed || t.status !== 'abgeschlossen')],
   ['offen', 'Offen', (t) => t.status === 'offen'],
   ['wichtig', 'Wichtig', (t) => t.star || (t.prio === 'hoch' && t.status === 'offen')],
   ['wartet', 'Wartet', (t) => t.status === 'beantwortet'],
+  ['alle', 'Alle', (t) => t.status !== 'spam' && (showClosed || t.status !== 'abgeschlossen')],
   ['gebucht', 'Gebucht', (t) => t.status === 'gebucht'],
   ['abgeschlossen', 'Abgeschlossen', (t) => t.status === 'abgeschlossen'],
   ['spam', 'Spam', (t) => t.status === 'spam'],
@@ -1261,7 +1267,7 @@ function rowsHTML() {
      ${selMode ? `<span class="cbx ${sel ? 'on' : ''}">${sel ? '✓' : ''}</span>` : ''}${markTile(t)}
      <span class="rc"><span class="r1"><b>${esc(t.name)}</b>${t.star ? '<span class="star">★</span>' : ''}<time>${fmtT(t.at)}</time></span>
      <span class="r2">${esc(t.subject)}</span>
-     <span class="r3">${draftBadge(t)}${stateBadge(t)}${t.prio === 'hoch' && t.status === 'offen' && t.color !== 'rot' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color === 'orange' && t.status !== 'abgeschlossen' ? `<span class="mkc">${COLOR_NAMES.orange}</span>` : ''}${(t.spam || 0) >= 40 && t.status !== 'spam' ? `<span class="st st-spam">Spam? ${t.spam} %</span>` : ''}${t.studio !== 'X' || t.cat ? `<span>${t.studio !== 'X' ? STUDIO[t.studio].replace(' Loft', '') : ''}${t.studio !== 'X' && t.cat ? ' · ' : ''}${esc(t.cat || '')}</span>` : ''}${w > 12 ? `<span class="hot">· ${Math.round(w)} h</span>` : ''}</span></span>${selMode ? '' : `<span class="qa"><button class="qbtn2 ${t.star ? 'on' : ''}" data-qstar="${t.id}" title="Wichtig" aria-label="Wichtig">★</button><button class="qbtn2" data-qdone="${t.id}" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="Erledigt">✓</button><button class="qbtn2" data-qmenu="${t.id}" title="Zuweisen" aria-label="Zuweisen">•••</button></span>`}</div>`;
+     <span class="r3">${kindBadge(t)}${draftBadge(t)}${stateBadge(t)}${t.prio === 'hoch' && t.status === 'offen' && t.color !== 'rot' ? '<span class="st st-hot">Dringend</span>' : ''}${t.color === 'orange' && t.status !== 'abgeschlossen' ? `<span class="mkc">${COLOR_NAMES.orange}</span>` : ''}${(t.spam || 0) >= 40 && t.status !== 'spam' ? `<span class="st st-spam">Spam? ${t.spam} %</span>` : ''}${t.studio !== 'X' || t.cat ? `<span>${t.studio !== 'X' ? STUDIO[t.studio].replace(' Loft', '') : ''}${t.studio !== 'X' && t.cat ? ' · ' : ''}${esc(t.cat || '')}</span>` : ''}${w > 12 ? `<span class="hot">· ${Math.round(w)} h</span>` : ''}</span></span>${selMode ? '' : `<span class="qa"><button class="qbtn2 ${t.star ? 'on' : ''}" data-qstar="${t.id}" title="Wichtig" aria-label="Wichtig">★</button><button class="qbtn2" data-qdone="${t.id}" title="${t.status === 'abgeschlossen' ? 'Wieder öffnen' : 'Erledigt'}" aria-label="Erledigt">✓</button><button class="qbtn2" data-qmenu="${t.id}" title="Zuweisen" aria-label="Zuweisen">•••</button></span>`}</div>`;
   }).join('');
   const pager = `<div class="pager"><span class="pinfo">${from + 1}–${from + shown.length} von ${total}</span><div class="seg psize" role="group" aria-label="Pro Seite">${[10, 25, 50, 100].map((n) => `<button data-ps="${n}" aria-pressed="${pageSize === n}">${n}</button>`).join('')}</div><span class="pnav"><button class="icon" data-pg="-1" aria-label="Vorherige Seite" ${page === 0 ? 'disabled' : ''}>${I.back}</button><span class="pnum">${page + 1}/${pages}</span><button class="icon flip" data-pg="1" aria-label="Nächste Seite" ${page >= pages - 1 ? 'disabled' : ''}>${I.back}</button></span></div>`;
   const older = allLoaded ? '' : `<div class="loadold"><button class="mini" id="loadold">Ältere Anfragen laden</button><small>Angezeigt werden die letzten 6 Monate und alles, was noch offen ist.</small></div>`;
@@ -1304,7 +1310,7 @@ function detailHTML() {
     const cls = `${m.direction === 'out' ? 'out' : 'in'} ${i !== last ? 'older' : ''}`;
     if (!open) return `<div class="mail ${cls}"><button class="mhead" data-exp="${key}">${av}${head}</button></div>`;
     const mode = viewMode[m.id] || (m.body_html || m.graph_id ? 'html' : 'text');
-    const tools = m.body_html || m.graph_id ? `<div class="mtools"><div class="seg"><button data-vm="${m.id}:html" aria-pressed="${mode === 'html'}">Original</button><button data-vm="${m.id}:text" aria-pressed="${mode === 'text'}">Text</button></div>${mode === 'html' ? `<button class="mini" data-imgs="${m.id}">${showImgs[m.id] ? 'Bilder aus' : 'Bilder laden'}</button><button class="mini" data-quote="${m.id}">${showQuote[m.id] ? 'Verlauf aus' : 'Verlauf'}</button>` : ''}</div>` : '';
+    const tools = m.body_html || m.graph_id ? `<div class="mtools"><div class="seg"><button data-vm="${m.id}:html" aria-pressed="${mode === 'html'}">Original</button><button data-vm="${m.id}:text" aria-pressed="${mode === 'text'}">Text</button></div>${mode === 'html' ? `<button class="mini" data-imgs="${m.id}">${imgsOn(m) ? 'Bilder aus' : 'Bilder laden'}</button><button class="mini" data-quote="${m.id}">${showQuote[m.id] ? 'Verlauf aus' : 'Verlauf'}</button>` : ''}</div>` : '';
     const body = mode === 'html' ? (m.body_html ? `<iframe class="mframe" data-mid="${m.id}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="E-Mail"></iframe>` : `<div class="mbody mload">Original wird geladen …</div>`) : `<div class="mbody">${esc(m.body_text)}</div>`;
     return `<div class="mail ${cls} ${i === firstIn ? 'first' : ''}"><button class="mhead" data-col="${key}" title="Zuklappen">${av}${head}<span class="mcol" aria-hidden="true">▴</span></button>${tools}${body}</div>`;
   });
@@ -1346,7 +1352,7 @@ function bindDetail() {
   document.querySelectorAll('.mframe').forEach((f) => {
     const m = msgs.find((x) => x.id === f.dataset.mid); if (!m) return;
     f.onload = () => { fitFrame(f); setTimeout(() => fitFrame(f), 400); setTimeout(() => fitFrame(f), 1500); };
-    f.srcdoc = frameDoc(m.body_html, !!showImgs[m.id], !!showQuote[m.id]);
+    f.srcdoc = frameDoc(m.body_html, imgsOn(m), !!showQuote[m.id]);
   });
   // ältere Mails ohne gespeichertes HTML nachladen
   const missing = msgs.filter((m) => !m.body_html && m.graph_id && (viewMode[m.id] || 'html') === 'html' && !m._loading && document.querySelector(`[data-vm="${m.id}:html"]`));
@@ -1650,6 +1656,7 @@ async function renderSettings() {
   el.innerHTML = `<div class="sinner"><h1>Einstellungen</h1>
    <section class="scard"><h3>Darstellung</h3><div class="srow"><div class="stx"><b>Erscheinungsbild</b><small>System folgt der Einstellung deines Geräts</small></div><div class="seg">${th('light')}${th('dark')}${th('system')}</div></div></section>
    <section class="scard" id="mailcard"><h3>Postfach</h3><div class="srow"><div class="stx"><b>Lade Status …</b></div></div></section>
+   <section class="scard" id="clscard"><h3>Mails einstufen</h3><div class="srow"><div class="stx"><b>Lade …</b></div></div></section>
    <section class="scard" id="aicard"><h3>KI</h3><div class="srow"><div class="stx"><b>Lade Status …</b></div></div></section>
    <section class="scard" id="fdcard"><h3>Freshdesk-Import</h3><div class="srow"><div class="stx"><b>Lade …</b></div></div></section>
    <section class="scard" id="costcard"><h3>KI-Kosten</h3><div class="srow"><div class="stx"><b>Lade …</b></div></div></section>
@@ -1664,7 +1671,7 @@ async function renderSettings() {
   const q = new URLSearchParams(location.hash.split('?')[1] || '');
   if (q.get('ms') === 'ok') { toast('Microsoft verbunden'); history.replaceState(null, '', '#einstellungen'); }
   else if (q.get('ms') === 'fehler') { toast('Microsoft: ' + (q.get('grund') || 'Fehler')); history.replaceState(null, '', '#einstellungen'); }
-  fillCalCard(); fillCostCard(); fillFdCard();
+  fillCalCard(); fillCostCard(); fillFdCard(); fillClsCard();
   let s; try { s = await api('/api/status'); } catch (e) { s = { error: e.message }; }
   const ac = $('#aicard');
   if (ac) { const ai = s.ai || {}; ac.innerHTML = `<h3>KI</h3>
@@ -1829,7 +1836,21 @@ function calForThread(t) {
   const k = (t.reqDate || isoOf(new Date())).slice(0, 7);
   if (calNeeds([k])) ensureCal([k]).then(() => { if (current?.id === t.id) fillAvail(); });
 }
-let fdTimer = null;
+let clsTimer = null, clsAuto = false;
+async function fillClsCard() {
+  const c = $('#clscard'); if (!c) return;
+  const [{ data: row }, { count }] = await Promise.all([sb.from('sync_state').select('value').eq('key', 'ai:classify-all').maybeSingle(), sb.from('threads').select('id', { count: 'exact', head: true }).is('ai_at', null).eq('is_test', false)]);
+  const v = row?.value, running = v?.status === 'läuft' && Date.now() - new Date(v.at).getTime() < 180000;
+  if (!running && count && v && v.status !== 'fertig' && !clsAuto) { clsAuto = true; startCls(); } // unterbrochen: automatisch fortsetzen
+  c.innerHTML = `<h3>Mails einstufen</h3>
+   <div class="srow"><div class="stx"><b>${count ? count.toLocaleString('de-DE') + ' Mails noch nicht eingestuft' : 'Alle Mails sind eingestuft'}</b><small>Die KI sortiert in Anfrage, Sonstiges, Werbung und Spam. Werbung und Spam sind in der Liste markiert. Am Postfach ändert sich nichts. Kostet grob 1 bis 2 Dollar pro 3.000 Mails, eindeutige Newsletter erkennt die App ohne KI.</small>${v?.lastError ? `<small class="errline">${esc(v.lastError)}</small>` : ''}</div>
+   <span class="cst ${count ? 'todo' : 'ok'}">${running ? 'Läuft' : count ? 'Offen' : 'Fertig'}</span></div>
+   ${running ? `<p class="hint2">Läuft im Hintergrund: ${(v.done || 0).toLocaleString('de-DE')} eingestuft${v.errors ? ', ' + v.errors + ' Fehler' : ''}. Du kannst die App schließen.</p>` : count ? '<div class="srow"><button class="mini" id="clsstart">Jetzt alle einstufen</button></div>' : ''}`;
+  clearTimeout(clsTimer); if (running) clsTimer = setTimeout(() => { if (view === 'set') fillClsCard(); }, 5000);
+}
+async function startCls() { const { data } = await sb.auth.getSession(); await fetch('/api/ai/classify-all', { method: 'POST', headers: { authorization: 'Bearer ' + data.session.access_token } }); setTimeout(fillClsCard, 3000); }
+document.addEventListener('click', (e) => { if (e.target.closest('#clsstart')) { startCls(); toast('Einstufen gestartet'); } });
+let fdTimer = null, fdAuto = false;
 async function fillFdCard() {
   const c = $('#fdcard'); if (!c) return;
   const { data } = await sb.from('sync_state').select('value').eq('key', 'freshdesk:import').maybeSingle();
@@ -1842,6 +1863,7 @@ async function fillFdCard() {
    ${v ? `<div class="costgrid"><div><small>Tickets geprüft</small><b>${(n.tickets || 0).toLocaleString('de-DE')}</b></div><div><small>Antworten übernommen</small><b>${(n.replies || 0).toLocaleString('de-DE')}</b></div><div><small>Neu angelegt</small><b>${(n.newThreads || 0).toLocaleString('de-DE')}</b></div><div><small>Übersprungen / Fehler</small><b>${(n.skipped || 0)} / ${(n.errors || 0)}</b></div></div>` : ''}
    ${v?.lastTicketError ? `<p class="hint2">Letzter Fehler: ${esc(v.lastTicketError)}</p>` : ''}
    <div class="srow">${v?.status === 'läuft' && !stale ? '<small class="hint2">Läuft im Hintergrund weiter, auch wenn du die App schließt.</small>' : `<button class="mini" id="fdstart">${!v ? 'Import starten' : v.status === 'fertig' ? 'Nochmal prüfen' : 'Fortsetzen'}</button>`}</div>`;
+  if (v && (stale || (v.status === 'pausiert' && !v.error)) && !fdAuto) { fdAuto = true; const { data: ss } = await sb.auth.getSession(); fetch('/api/freshdesk/import', { method: 'POST', headers: { authorization: 'Bearer ' + ss.session.access_token, 'content-type': 'application/json' }, body: '{}' }); setTimeout(fillFdCard, 4000); }
   clearTimeout(fdTimer);
   if (v?.status === 'läuft' && !stale) fdTimer = setTimeout(() => { if (view === 'set') fillFdCard(); }, 5000);
 }
@@ -1922,7 +1944,7 @@ document.addEventListener('click', async (e) => {
   if (b.dataset.view) { view = b.dataset.view; sheet = null; history.replaceState(null, '', view === 'set' ? '#einstellungen' : view === 'cal' ? '#kalender' : '#'); render(); return; }
   if (b.dataset.f) { filter = b.dataset.f; page = 0; renderList(); if (filter === 'abgeschlossen' || filter === 'spam') loadAll(); return; }
   if (b.id === 'loadold') { loadAll(); return; }
-  if (b.dataset.box) { box = b.dataset.box; page = 0; filter = 'alle'; renderList(); return; }
+  if (b.dataset.box) { box = b.dataset.box; page = 0; filter = box === 'sonstiges' ? 'alle' : 'offen'; renderList(); return; }
   if (b.id === 'tnew') { testNew(); return; }
   if (b.id === 'texit' || b.id === 'testoff') { testMode = false; try { localStorage.setItem('li-test', '0'); } catch (err) {} current = null; render(); return; }
   if (b.id === 'teston') { testMode = true; try { localStorage.setItem('li-test', '1'); } catch (err) {} current = null; view = 'inbox'; history.replaceState(null, '', '#'); render(); return; }
@@ -1966,7 +1988,7 @@ document.addEventListener('click', async (e) => {
   if (!t) return;
   if (b.dataset.copy) { const v = b.dataset.copy; try { await navigator.clipboard.writeText(v); toast('Kopiert'); } catch (err) { toast(v); } return; }
   if (b.dataset.vm) { const [id, m] = b.dataset.vm.split(':'); viewMode[id] = m; redrawDetail(); return; }
-  if (b.dataset.imgs) { showImgs[b.dataset.imgs] = !showImgs[b.dataset.imgs]; redrawDetail(); return; }
+  if (b.dataset.imgs) { const mm = msgs.find((x) => String(x.id) === b.dataset.imgs); showImgs[b.dataset.imgs] = !(mm ? imgsOn(mm) : showImgs[b.dataset.imgs]); redrawDetail(); return; }
   if (b.dataset.quote) { showQuote[b.dataset.quote] = !showQuote[b.dataset.quote]; redrawDetail(); return; }
   if (b.dataset.ord) { msgOrder = b.dataset.ord; try { localStorage.setItem('li-order', msgOrder); } catch (err) {} redrawDetail(); return; }
   if (b.dataset.col) { expanded[b.dataset.col] = false; const s = $('#dscroll').scrollTop; $('#detail').innerHTML = detailHTML(); bindDetail(); $('#dscroll').scrollTop = s; return; }

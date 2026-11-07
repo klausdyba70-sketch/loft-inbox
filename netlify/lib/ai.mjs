@@ -168,14 +168,26 @@ async function loadThread(db, threadId) {
 const convoText = (msgs, n = 6) => msgs.slice(-n).map((m) => `[${m.direction === 'in' ? 'KUNDE' : 'LOFT STUDIO'} · ${String(m.sent_at).slice(0, 16).replace('T', ' ')}]\n${(m.body_text || '').slice(0, 2500)}`).join('\n\n');
 
 // ---------- Einstufung ----------
-export async function classifyThread(db, threadId) {
+// Eindeutige Newsletter ohne KI erkennen (spart Kosten beim Einstufen alter Mails)
+function quickKind(t, msgs) {
+  const first = msgs.find((m) => m.direction === 'in'); if (!first) return null;
+  const from = (t.contacts?.email || '').toLowerCase(), text = msgs.map((m) => m.body_text || '').join('\n');
+  if (msgs.some((m) => m.direction === 'out')) return null; // mit Antwort von Klaus: lieber die KI fragen
+  const unsub = /(newsletter abbestellen|vom newsletter abmelden|abmelden|unsubscribe|im browser (ansehen|anzeigen)|view (this email )?in (your )?browser|e-mail-einstellungen)/i.test(text);
+  if (unsub) return { kind: 'sonstiges', category: 'Werbung', spam_score: 60, summary: 'Newsletter oder Werbung von ' + (t.contacts?.name || from) + '.' };
+  return null;
+}
+export async function classifyThread(db, threadId, { old = false } = {}) {
   const { t, msgs } = await loadThread(db, threadId);
   if (!msgs.length) return null;
+  const q = quickKind(t, msgs);
+  if (q) { const patch = { ...q, priority: 'niedrig', ai_at: new Date().toISOString() }; await db.from('threads').update(patch).eq('id', threadId); return patch; }
   const system = `Du sortierst E-Mails im Postfach von Loft Studio Cologne, einem Vermieter von zwei Foto-, Film- und Event-Studios in Köln (Penthouse Loft und Factory Loft).
 kind:
 - "anfrage": Jede Nachricht von Menschen, die die Lofts mieten, buchen, besichtigen wollen oder Fragen zu Preis, Verfügbarkeit, Ausstattung, Ablauf oder einer bestehenden Buchung haben. Auch Agenturen und Produktionsfirmen. Im Zweifel immer "anfrage".
 - "sonstiges": Rechnungen, Zahlungen, Behörden, Lieferanten, Newsletter, Benachrichtigungen von Plattformen (Instagram, Booking-Tools), Systemmails, Kooperationsangebote ohne Mietabsicht.
 - "spam": Werbung für SEO, Marketing, Listings, Phishing, gefälschte Mahnungen, Massenmails.
+werbung: true, wenn es Werbung, ein Newsletter oder eine Marketing-Mail ist (auch abonnierte), sonst false.
 spam_score 0 bis 100: Wahrscheinlichkeit für Spam.
 studio: "P" Penthouse, "F" Factory, "X" unklar oder beide.
 category: eine aus ${JSON.stringify(CATS)}, bei sonstiges/spam null.
@@ -190,7 +202,7 @@ Betreff: ${t.subject}
 Verlauf (neueste zuletzt):
 ${convoText(msgs)}
 
-JSON: {"kind":"anfrage|sonstiges|spam","spam_score":0,"studio":"P|F|X","category":null,"requested_date":null,"priority":"normal","summary":""}`;
+JSON: {"kind":"anfrage|sonstiges|spam","werbung":false,"spam_score":0,"studio":"P|F|X","category":null,"requested_date":null,"priority":"normal","summary":""}`;
   const r = (await claudeJson({ model: MODEL_FAST, system, prompt, max_tokens: 400, kind: 'Einstufen' }));
   const kind = ['anfrage', 'sonstiges', 'spam'].includes(r.kind) ? r.kind : 'anfrage';
   const spam = Math.max(0, Math.min(100, Math.round(+r.spam_score || 0)));
@@ -200,8 +212,10 @@ JSON: {"kind":"anfrage|sonstiges|spam","spam_score":0,"studio":"P|F|X","category
   if (['P', 'F'].includes(r.studio)) patch.requested_studio = r.studio;
   if (t.studio === 'X' && ['P', 'F'].includes(r.studio)) patch.studio = r.studio;
   if (!t.category && kind === 'anfrage' && CATS.includes(r.category)) patch.category = r.category;
+  if (kind !== 'anfrage' && r.werbung === true) patch.category = 'Werbung';
   if (first && ['hoch', 'normal', 'niedrig'].includes(r.priority)) patch.priority = r.priority;
-  if (date && kind === 'anfrage' && t.status === 'offen') {
+  if (old) delete patch.priority;
+  if (!old && date && kind === 'anfrage' && t.status === 'offen') {
     const days = (new Date(date) - new Date(new Date().toISOString().slice(0, 10))) / 864e5;
     if (days >= 0 && days <= 7) patch.priority = 'hoch';
   }
